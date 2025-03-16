@@ -10,20 +10,20 @@ class VanDerPolMPCOptions:
     epsilon_2: float = 0.3
     epsilon_3: float = 5
     epsilon_4: float = 0.01
-    d1: float = 0.2
-    d2: float = 0.1
+    d1: float = 1.6
+    d2: float = 1.6
     d3: float = 5
 
     # MPC Parameters
-    step_size_list: List[float] = field(default_factory=lambda: [0.02] * 20)  # Corrected
-    N: int = 20
-    switch_stage: int = 10
+    step_size_list: List[float] = field(default_factory=lambda: [0.02] * 40)  # Corrected
+    N: int = 40
+    switch_stage: int = 20
     nlp_solver_type: str = "SQP"  # "SQP_RTI" is another option
     qp_solver: str = "FULL_CONDENSING_HPIPM"
 
     # Cost Weights (Only for x1, x2 tracking)
-    Q_2d: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))  # Corrected
-    R_2d: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))  # Corrected
+    Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))  # Corrected
+    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.001, 0.001]))  # Corrected
 
 
 
@@ -234,7 +234,7 @@ class VanDerPolMPC:
         Set reference trajectory in the solver based on self.Phi_t.
         The function self.Phi_t(t) should return the desired reference [x1_ref, x2_ref] at time t.
         """
-        N = len(self.opts.step_size_list)  # Horizon length
+        N = len(self.opts.step_size_list)  # Horizon length without switching
         t_eval = t0  # Start from the given time
 
         offset = 0
@@ -272,5 +272,17 @@ class VanDerPolMPC:
 
         # Return first control input
         return self.acados_ocp_solver.get(0, "u")
+
+    def get_planned_trajectory(self):
+        N = len(self.opts.step_size_list)
+        traj_x, traj_u = [], []
+        for i in range(N+1):  # N+1 due to transition stage
+            x_i = self.acados_ocp_solver.get(i, "x")
+            u_i = self.acados_ocp_solver.get(i, "u")
+            traj_x.append(x_i)
+            traj_u.append(u_i)
+        x_N = self.acados_ocp_solver.get(N+1, "x")
+        traj_x.append(x_N)
+        return traj_x, traj_u
     
   
