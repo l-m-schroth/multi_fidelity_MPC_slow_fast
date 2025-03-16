@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 import numpy as np
 
@@ -6,24 +6,25 @@ import numpy as np
 class VanDerPolMPCOptions:
     # System Parameters
     mu: float = 1.0
-    epsilon_1: float = 0.005
+    epsilon_1: float = 10
     epsilon_2: float = 0.3
-    epsilon_3: float = 0.001
+    epsilon_3: float = 5
     epsilon_4: float = 0.01
     d1: float = 0.2
     d2: float = 0.1
-    d3: float = 0.3
+    d3: float = 5
 
     # MPC Parameters
-    step_size_list: List[float] = [0.02] * 10  # Define default in __post_init__
-    N: int = 10
-    switch_stage: int = 5
+    step_size_list: List[float] = field(default_factory=lambda: [0.02] * 20)  # Corrected
+    N: int = 20
+    switch_stage: int = 10
     nlp_solver_type: str = "SQP"  # "SQP_RTI" is another option
     qp_solver: str = "FULL_CONDENSING_HPIPM"
 
     # Cost Weights (Only for x1, x2 tracking)
-    Q_2d: np.ndarray = np.diag([1.0, 1.0])  # Track x1 and x2
-    R_2d: np.ndarray = np.diag([1.0, 1.0])   # Control cost
+    Q_2d: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))  # Corrected
+    R_2d: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))  # Corrected
+
 
 
 from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver, AcadosSim, AcadosSimSolver, AcadosMultiphaseOcp
@@ -42,7 +43,7 @@ class VanDerPolMPC:
 
         # Create Acados Solver
         json_file = f"acados_ocp_vdp_{self.opts.switch_stage}.json"
-        self.ocp_solver = AcadosOcpSolver(self.mpc_ocp, json_file=json_file)
+        self.ocp_solver = AcadosOcpSolver(self.mp_ocp, json_file=json_file)
 
         # Create Acados Simulation Solver (for closed-loop simulation)
         self.sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
@@ -54,69 +55,37 @@ class VanDerPolMPC:
           - Phase 1: 2D Model (x1, x2) afterward
         """
         switch_stage = self.opts.switch_stage
-        N = self.opts.switch_stage
+        N = self.opts.N
 
         # Multi-phase OCP setup
-        self.mpc_ocp = AcadosMultiphaseOcp(N_list=[switch_stage, N - switch_stage])
-        self.mpc_ocp.solver_options.tf = sum(self.opts.step_size_list)
+        N_list=[switch_stage, 1, N - switch_stage] # 1 for the transition stage
+        mp_ocp = AcadosMultiphaseOcp(N_list)
 
         # Create phases
-        model_3d = self._create_vdp_3d_model
-        model_2d = self._create_vdp_2d_model
-        ocp_phase_0 = self._build_ocp(switch_stage, model_3d, self.opts.step_size_list[:self.opts.switch_stage])
-        ocp_phase_1 = self._build_ocp(N - switch_stage, model_2d, self.opts.step_size_list[self.opts.switch_stage:])
-
+        model_3d = self._create_vdp_3d_model()
+        model_2d = self._create_vdp_2d_model()
+        ocp_phase_0 = self._create_ocp(model_3d)
+        ocp_phase_1 = self._create_transition_ocp()
+        ocp_phase_2 = self._create_ocp(model_2d)
+        
         # Assign phases to OCP
-        self.mpc_ocp.set_phase(ocp_phase_0, 0)
-        self.mpc_ocp.set_phase(ocp_phase_1, 1)
+        mp_ocp.set_phase(ocp_phase_0, 0)
+        mp_ocp.set_phase(ocp_phase_1, 1)
+        mp_ocp.set_phase(ocp_phase_2, 2)
 
         # Assign time steps
-        self.mpc_ocp.solver_options.time_steps = self.opts.step_size_list
-
+        step_sizes_list_with_transition = self.opts.step_size_list[:self.opts.switch_stage] + [1.0] + self.opts.step_size_list[self.opts.switch_stage:]
+        mp_ocp.solver_options.time_steps = np.array(step_sizes_list_with_transition)
+        mp_ocp.solver_options.tf = sum(step_sizes_list_with_transition)
+        
         # Set solver options
-        self.mpc_ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
-        self.mpc_ocp.solver_options.qp_solver = self.opts.qp_solver
-        self.mpc_ocp.solver_options.integrator_type = ["RK4", "RK4"]
+        mp_ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
+        mp_ocp.solver_options.qp_solver = self.opts.qp_solver
+        mp_ocp.mocp_opts.integrator_type = ['ERK', 'DISCRETE', 'ERK']
 
-    def _build_ocp_3d(self, N_phase):
-        """
-        Defines the first-phase OCP using the 3D model.
-        """
-        ocp_3d = AcadosOcp()
-        ocp_3d.model = self._create_vdp_3d_model()
-
-        nx_3d = 3
-        nu_3d = 1
-        ny_3d = 2 + nu_3d  # Only tracking x1, x2 + control u
-
-        ocp_3d.cost.cost_type = "NONLINEAR_LS"
-        ocp_3d.cost.cost_type_e = "NONLINEAR_LS"
-
-        x1, x2 = ocp_3d.model.x[0], ocp_3d.model.x[1]
-        u_3d = ocp_3d.model.u[0]
-
-        ocp_3d.model.cost_y_expr = ca.vertcat(x1, x2, u_3d)
-        ocp_3d.model.cost_y_expr_e = ca.vertcat(x1, x2)
-
-        W_3d = np.block([
-            [self.opts.Q_2d,              np.zeros((2,1))],
-            [np.zeros((1,2)),             self.opts.R_2d]
-        ])
-
-        ocp_3d.cost.W = W_3d
-        ocp_3d.cost.W_e = self.opts.Q_2d
-
-        # initialize desired trajectory with zeros
-        ocp_3d.cost.yref = np.zeros(ny_3d)
-        ocp_3d.cost.yref_e = np.zeros(2)
-
-        ocp_3d.dims.N = N_phase
-        ocp_3d.solver_options.tf = sum(self.opts.step_size_list[:N_phase])
-        ocp_3d.solver_options.integrator_type = "RK4"
-
-        return ocp_3d
+        self.mp_ocp = mp_ocp
     
-    def _build_ocp(self, model, N_phase, step_size_list):
+    def _create_ocp(self, model):
         """
         Defines the second-phase OCP using the 2D model (neglecting x3).
         """
@@ -148,9 +117,7 @@ class VanDerPolMPC:
         ocp.cost.yref = np.zeros(ny)
         ocp.cost.yref_e = np.zeros(ny_x)
 
-        # ocp.dims.N = N_phase
-        # ocp.solver_options.tf = sum(self.opts.step_size_list[self.opts.switch_stage:])
-        # ocp.solver_options.integrator_type = "RK4"
+        return ocp
     
     def _create_vdp_3d_model(self):
         """
@@ -217,6 +184,25 @@ class VanDerPolMPC:
         model.f_impl_expr = xdot - ca.vertcat(x1, x2)
 
         return model
+    
+    def _create_transition_model(self):
+        model = AcadosModel()
+        model.name = 'transition_model'
+        x1 = ca.SX.sym("x1")
+        x2 = ca.SX.sym("x2")
+        x3 = ca.SX.sym("x3")
+        model.x = ca.vertcat(x1, x2, x3)
+        model.disc_dyn_expr = ca.vertcat(x1, x2)
+        return model
+
+    def _create_transition_ocp(self):
+        ocp = AcadosOcp()
+        ocp.model = self._create_transition_model() 
+        ocp.cost.cost_type = 'NONLINEAR_LS'
+        ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[0], ocp.model.x[1])
+        ocp.cost.W = self.opts.Q_2d
+        ocp.cost.yref = np.array([0., 0.]) # the reference values are overwritten later
+        return ocp
 
     def _create_sim_3d(self, json_file_suffix="vdp_3d_sim"):
         """
@@ -228,7 +214,7 @@ class VanDerPolMPC:
 
         # Pick a step size for simulation (same as the first step size)
         sim.solver_options.T = self.opts.step_size_list[0]
-        sim.solver_options.integrator_type = "RK4"
+        sim.solver_options.integrator_type = "ERK"
         
         sim_solver = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
         return sim_solver
@@ -246,12 +232,12 @@ class VanDerPolMPC:
         t_eval = t0  # Start from the given time
 
         for stage in range(N):
-            t_eval += self.opts.step_size_list[stage]
             x1_ref, x2_ref = self.Phi_t(t_eval)  # Get reference at time t_eval
 
             # Construct yref: [x1_ref, x2_ref, u_ref=0]
             y_ref = np.array([x1_ref, x2_ref, 0.0])
             self.ocp_solver.set(stage, "yref", y_ref)
+            t_eval += self.opts.step_size_list[stage]
 
         # Set terminal reference
         t_eval += self.opts.step_size_list[-1]
@@ -259,7 +245,7 @@ class VanDerPolMPC:
         y_ref_N = np.array([x1_ref, x2_ref])
         self.ocp_solver.set(N, "yref", y_ref_N)
 
-    def solve(self, x0, t):
+    def solve(self, x0, t0):
         """
         Solves the MPC problem:
         1. Sets the initial guess with x0.
@@ -270,7 +256,7 @@ class VanDerPolMPC:
         self.set_initial_state(x0)
 
         # Set reference trajectory
-        self.set_reference_trajectory(t)
+        self.set_reference_trajectory(t0)
 
         # Solve the OCP
         status = self.ocp_solver.solve()
@@ -280,3 +266,5 @@ class VanDerPolMPC:
 
         # Return first control input
         return self.ocp_solver.get(0, "u")
+    
+  
