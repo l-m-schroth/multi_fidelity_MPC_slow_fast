@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=False):
     """
     Plots the phase space of the Van der Pol oscillator with the desired trajectory.
@@ -45,26 +48,40 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
         x_plan, _ = mpc.get_planned_trajectory()
         switch_stage = mpc.opts.switch_stage
 
-        x1_plan_before = [x[0] for x in x_plan[:switch_stage+1]]
-        x2_plan_before = [x[1] for x in x_plan[:switch_stage+1]]
+        if switch_stage == 0:  
+            # **Only 2D Model Case**
+            x1_plan = [x[0] for x in x_plan]
+            x2_plan = [x[1] for x in x_plan]
+            plt.plot(x1_plan, x2_plan, 'b--', label="Open Loop Plan (2D Model)", linewidth=2)
 
-        x1_plan_after = [x[0] for x in x_plan[switch_stage+1:]]
-        x2_plan_after = [x[1] for x in x_plan[switch_stage+1:]]
+        elif switch_stage >= mpc.opts.N:  
+            # **Only 3D Model Case**
+            x1_plan = [x[0] for x in x_plan]
+            x2_plan = [x[1] for x in x_plan]
+            plt.plot(x1_plan, x2_plan, 'r--', label="Open Loop Plan (3D Model)", linewidth=2)
 
-        plt.plot(x1_plan_before, x2_plan_before, 'r--', label="Open Loop Plan (3D Phase)", linewidth=2)
-        plt.plot(x1_plan_after, x2_plan_after, 'b--', label="Open Loop Plan (2D Phase)", linewidth=2)
+        else:  
+            # **Mixed Model Case (3D → 2D switch)**
+            x1_plan_before = [x[0] for x in x_plan[:switch_stage+1]]
+            x2_plan_before = [x[1] for x in x_plan[:switch_stage+1]]
 
-        # Add arrows indicating open-loop trajectory direction
-        plt.quiver(
-            x1_plan_before[::2], x2_plan_before[::2], 
-            np.gradient(x1_plan_before)[::2], np.gradient(x2_plan_before)[::2], 
-            angles="xy", scale_units="xy", scale=0.3, color="r", width=0.005, headwidth=4, headlength=6
-        )
-        plt.quiver(
-            x1_plan_after[::2], x2_plan_after[::2], 
-            np.gradient(x1_plan_after)[::2], np.gradient(x2_plan_after)[::2], 
-            angles="xy", scale_units="xy", scale=0.3, color="b", width=0.005, headwidth=4, headlength=6
-        )
+            x1_plan_after = [x[0] for x in x_plan[switch_stage+1:]]
+            x2_plan_after = [x[1] for x in x_plan[switch_stage+1:]]
+
+            plt.plot(x1_plan_before, x2_plan_before, 'r--', label="Open Loop Plan (3D Phase)", linewidth=2)
+            plt.plot(x1_plan_after, x2_plan_after, 'b--', label="Open Loop Plan (2D Phase)", linewidth=2)
+
+            # Add arrows indicating open-loop trajectory direction
+            plt.quiver(
+                x1_plan_before[::2], x2_plan_before[::2], 
+                np.gradient(x1_plan_before)[::2], np.gradient(x2_plan_before)[::2], 
+                angles="xy", scale_units="xy", scale=0.3, color="r", width=0.005, headwidth=4, headlength=6
+            )
+            plt.quiver(
+                x1_plan_after[::2], x2_plan_after[::2], 
+                np.gradient(x1_plan_after)[::2], np.gradient(x2_plan_after)[::2], 
+                angles="xy", scale_units="xy", scale=0.3, color="b", width=0.005, headwidth=4, headlength=6
+            )
 
     # Labels and settings
     plt.xlabel("$x_1$")
@@ -73,6 +90,7 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
     plt.legend()
     plt.grid()
     plt.show()
+
 
 
 

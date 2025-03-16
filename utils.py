@@ -13,11 +13,17 @@ def simulate_closed_loop(x0, mpc, duration):
     # Set initial state
     x_traj[0] = x0.squeeze()
 
+    # is only 2d model is used, select only the x1 and x2 for the initial state of the MPC
+    if mpc.opts.switch_stage == 0:
+        nx0_mpc = 2
+    else:
+        nx0_mpc = 3 
+
     for step in range(num_steps):
         t = step * dt_sim
 
         # Solve MPC
-        u_opt = mpc.solve(x_traj[step], t)
+        u_opt = mpc.solve(x_traj[step,:nx0_mpc], t)
         u_traj[step] = u_opt
 
         # Simulate one step using Acados Sim Solver

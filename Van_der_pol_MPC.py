@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 import numpy as np
+from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver, AcadosSim, AcadosSimSolver, AcadosMultiphaseOcp
+import casadi as ca
 
 @dataclass
 class VanDerPolMPCOptions:
@@ -25,11 +27,6 @@ class VanDerPolMPCOptions:
     Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))  # Corrected
     R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.001, 0.001]))  # Corrected
 
-
-
-from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver, AcadosSim, AcadosSimSolver, AcadosMultiphaseOcp
-import casadi as ca
-
 class VanDerPolMPC:
 
     def __init__(self, options: VanDerPolMPCOptions, Phi_t):
@@ -39,12 +36,21 @@ class VanDerPolMPC:
         self.opts = options  # Store options as self.opts
         self.Phi_t = Phi_t
 
-        # Create a 2-phase OCP (3D → 2D transition)
-        self._create_multiphase_ocp()
+        self.multi_phase = False
+        if self.opts.switch_stage == 0:
+            # Use only 2d model
+            self._create_single_phase_ocp(model_dim=2)
+        elif self.opts.switch_stage >= self.opts.N:
+            # Use only 3d model
+            self._create_single_phase_ocp(model_dim=3)
+        else:
+            # Create a 2-phase OCP (3D → 2D transition)
+            self.multi_phase = True
+            self._create_multiphase_ocp()
 
         # Create Acados Solver
         json_file = f"acados_ocp_vdp_{self.opts.switch_stage}.json"
-        self.acados_ocp_solver = AcadosOcpSolver(self.mp_ocp, json_file=json_file)
+        self.acados_ocp_solver = AcadosOcpSolver(self.total_ocp, json_file=json_file)
 
         # Create Acados Simulation Solver (for closed-loop simulation)
         self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
@@ -84,7 +90,27 @@ class VanDerPolMPC:
         mp_ocp.solver_options.qp_solver = self.opts.qp_solver
         mp_ocp.mocp_opts.integrator_type = ['ERK', 'DISCRETE', 'ERK']
 
-        self.mp_ocp = mp_ocp
+        self.total_ocp = mp_ocp
+
+    def _create_single_phase_ocp(self, model_dim):
+        if model_dim == 2:
+            # 2d model case
+            model = self._create_vdp_2d_model()
+        else:
+            # 3d model case
+            model = self._create_vdp_3d_model()
+        
+        ocp = self._create_ocp(model, first_stage=True)
+        ocp.solver_options.time_steps = np.array(self.opts.step_size_list)
+        ocp.solver_options.tf = sum(self.opts.step_size_list)
+        
+        # Set solver options
+        ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
+        ocp.solver_options.qp_solver = self.opts.qp_solver
+        ocp.solver_options.integrator_type = 'ERK'
+        ocp.solver_options.N_horizon = self.opts.N
+
+        self.total_ocp = ocp
     
     def _create_ocp(self, model, first_stage=False):
         """
@@ -93,7 +119,10 @@ class VanDerPolMPC:
         ocp = AcadosOcp()
         ocp.model = model
 
-        nx = 3
+        if self.opts.switch_stage == 0:
+            nx = 2
+        else:
+            nx = 3
         ny_x = 2
         nu = 2
         ny = ny_x + nu
@@ -234,12 +263,12 @@ class VanDerPolMPC:
         Set reference trajectory in the solver based on self.Phi_t.
         The function self.Phi_t(t) should return the desired reference [x1_ref, x2_ref] at time t.
         """
-        N = len(self.opts.step_size_list)  # Horizon length without switching
+        N = self.opts.N  # Horizon length without switching
         t_eval = t0  # Start from the given time
 
         offset = 0
         for stage in range(N):
-            if stage == self.opts.switch_stage:
+            if stage is not 0 and stage == self.opts.switch_stage: # 0 stage means only 2d model and no switch
                 offset += 1 # no penalty for switching stage, no reference update
             x1_ref, x2_ref = self.Phi_t(t_eval)  # Get reference at time t_eval
             y_ref = np.array([x1_ref, x2_ref, 0.0, 0.0])
@@ -249,7 +278,7 @@ class VanDerPolMPC:
         # Set terminal reference
         x1_ref, x2_ref = self.Phi_t(t_eval)
         y_ref_N = np.array([x1_ref, x2_ref])
-        self.acados_ocp_solver.set(N+1, "yref", y_ref_N)
+        self.acados_ocp_solver.set(N+offset, "yref", y_ref_N)
 
     def solve(self, x0, t0):
         """
@@ -274,14 +303,16 @@ class VanDerPolMPC:
         return self.acados_ocp_solver.get(0, "u")
 
     def get_planned_trajectory(self):
-        N = len(self.opts.step_size_list)
+        N = self.opts.N
+        if self.multi_phase:
+            N += 1 # in multi-phase case, we need to account for the switching stage
         traj_x, traj_u = [], []
-        for i in range(N+1):  # N+1 due to transition stage
+        for i in range(N):  # N+1 due to transition stage
             x_i = self.acados_ocp_solver.get(i, "x")
             u_i = self.acados_ocp_solver.get(i, "u")
             traj_x.append(x_i)
             traj_u.append(u_i)
-        x_N = self.acados_ocp_solver.get(N+1, "x")
+        x_N = self.acados_ocp_solver.get(N, "x")
         traj_x.append(x_N)
         return traj_x, traj_u
     
