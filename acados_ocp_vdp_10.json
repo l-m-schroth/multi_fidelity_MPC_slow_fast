@@ -16,12 +16,20 @@
             "constr_type": "BGH",
             "constr_type_0": "BGH",
             "constr_type_e": "BGH",
-            "has_x0": false,
+            "has_x0": true,
             "idxbu": [],
             "idxbx": [],
-            "idxbx_0": [],
+            "idxbx_0": [
+                0,
+                1,
+                2
+            ],
             "idxbx_e": [],
-            "idxbxe_0": [],
+            "idxbxe_0": [
+                0,
+                1,
+                2
+            ],
             "idxsbu": [],
             "idxsbx": [],
             "idxsbx_e": [],
@@ -35,7 +43,11 @@
             "idxsphi_e": [],
             "lbu": [],
             "lbx": [],
-            "lbx_0": [],
+            "lbx_0": [
+                0.0,
+                0.0,
+                0.0
+            ],
             "lbx_e": [],
             "lg": [],
             "lg_e": [],
@@ -58,7 +70,11 @@
             "lsphi_e": [],
             "ubu": [],
             "ubx": [],
-            "ubx_0": [],
+            "ubx_0": [
+                0.0,
+                0.0,
+                0.0
+            ],
             "ubx_e": [],
             "ug": [],
             "ug_e": [],
@@ -345,22 +361,22 @@
             "Vz_0": [],
             "W": [
                 [
-                    1.0,
+                    0.0,
                     0.0
                 ],
                 [
                     0.0,
-                    1.0
+                    0.0
                 ]
             ],
             "W_0": [
                 [
-                    1.0,
+                    0.0,
                     0.0
                 ],
                 [
                     0.0,
-                    1.0
+                    0.0
                 ]
             ],
             "W_e": [],
@@ -757,7 +773,7 @@
         }
     ],
     "n_phases": 3,
-    "name": "multiphase_ocp_10_1_10_20250315_173735_979225",
+    "name": "multiphase_ocp_10_1_10_20250315_212602_050033",
     "p_global_values": [],
     "parameter_values": [
         [],
@@ -770,9 +786,9 @@
             "n_global_data": 0,
             "nbu": 0,
             "nbx": 0,
-            "nbx_0": 0,
+            "nbx_0": 3,
             "nbx_e": 0,
-            "nbxe_0": 0,
+            "nbxe_0": 3,
             "ng": 0,
             "ng_e": 0,
             "nh": 0,

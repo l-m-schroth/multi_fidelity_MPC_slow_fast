@@ -32,21 +32,22 @@ import casadi as ca
 
 class VanDerPolMPC:
 
-    def __init__(self, options: VanDerPolMPCOptions):
+    def __init__(self, options: VanDerPolMPCOptions, Phi_t):
         """
         Initializes the MPC problem using the provided options.
         """
         self.opts = options  # Store options as self.opts
+        self.Phi_t = Phi_t
 
         # Create a 2-phase OCP (3D → 2D transition)
         self._create_multiphase_ocp()
 
         # Create Acados Solver
         json_file = f"acados_ocp_vdp_{self.opts.switch_stage}.json"
-        self.ocp_solver = AcadosOcpSolver(self.mp_ocp, json_file=json_file)
+        self.acados_ocp_solver = AcadosOcpSolver(self.mp_ocp, json_file=json_file)
 
         # Create Acados Simulation Solver (for closed-loop simulation)
-        self.sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
+        self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
 
     def _create_multiphase_ocp(self):
         """
@@ -64,7 +65,7 @@ class VanDerPolMPC:
         # Create phases
         model_3d = self._create_vdp_3d_model()
         model_2d = self._create_vdp_2d_model()
-        ocp_phase_0 = self._create_ocp(model_3d)
+        ocp_phase_0 = self._create_ocp(model_3d, first_stage=True)
         ocp_phase_1 = self._create_transition_ocp()
         ocp_phase_2 = self._create_ocp(model_2d)
         
@@ -85,13 +86,14 @@ class VanDerPolMPC:
 
         self.mp_ocp = mp_ocp
     
-    def _create_ocp(self, model):
+    def _create_ocp(self, model, first_stage=False):
         """
         Defines the second-phase OCP using the 2D model (neglecting x3).
         """
         ocp = AcadosOcp()
         ocp.model = model
 
+        nx = 3
         ny_x = 2
         nu = 2
         ny = ny_x + nu
@@ -116,6 +118,10 @@ class VanDerPolMPC:
         # reference values are overwritten later
         ocp.cost.yref = np.zeros(ny)
         ocp.cost.yref_e = np.zeros(ny_x)
+
+        # constraints
+        if first_stage:
+            ocp.constraints.x0 = np.zeros((nx,1)) # initial state constraint 
 
         return ocp
     
@@ -200,7 +206,7 @@ class VanDerPolMPC:
         ocp.model = self._create_transition_model() 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[0], ocp.model.x[1])
-        ocp.cost.W = self.opts.Q_2d
+        ocp.cost.W = np.diag([0.0, 0.0])
         ocp.cost.yref = np.array([0., 0.]) # the reference values are overwritten later
         return ocp
 
@@ -231,19 +237,19 @@ class VanDerPolMPC:
         N = len(self.opts.step_size_list)  # Horizon length
         t_eval = t0  # Start from the given time
 
+        offset = 0
         for stage in range(N):
+            if stage == self.opts.switch_stage:
+                offset += 1 # no penalty for switching stage, no reference update
             x1_ref, x2_ref = self.Phi_t(t_eval)  # Get reference at time t_eval
-
-            # Construct yref: [x1_ref, x2_ref, u_ref=0]
-            y_ref = np.array([x1_ref, x2_ref, 0.0])
-            self.ocp_solver.set(stage, "yref", y_ref)
+            y_ref = np.array([x1_ref, x2_ref, 0.0, 0.0])
+            self.acados_ocp_solver.set(stage + offset, "yref", y_ref)
             t_eval += self.opts.step_size_list[stage]
 
         # Set terminal reference
-        t_eval += self.opts.step_size_list[-1]
         x1_ref, x2_ref = self.Phi_t(t_eval)
         y_ref_N = np.array([x1_ref, x2_ref])
-        self.ocp_solver.set(N, "yref", y_ref_N)
+        self.acados_ocp_solver.set(N+1, "yref", y_ref_N)
 
     def solve(self, x0, t0):
         """
@@ -259,12 +265,12 @@ class VanDerPolMPC:
         self.set_reference_trajectory(t0)
 
         # Solve the OCP
-        status = self.ocp_solver.solve()
+        status = self.acados_ocp_solver.solve()
         
         if status != 0:
             print(f"[VanDerPolMPC] OCP solver returned status {status}.")
 
         # Return first control input
-        return self.ocp_solver.get(0, "u")
+        return self.acados_ocp_solver.get(0, "u")
     
   
