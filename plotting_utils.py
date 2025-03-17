@@ -5,6 +5,10 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.patches as patches
+
 def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=False):
     """
     Plots the phase space of the Van der Pol oscillator with the desired trajectory.
@@ -83,6 +87,15 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
                 angles="xy", scale_units="xy", scale=0.3, color="b", width=0.005, headwidth=4, headlength=6
             )
 
+    # Optionally visualize elliptical constraints
+    if mpc is not None and mpc.opts.ellipse_centers is not None and mpc.opts.ellipse_half_axes is not None:
+        for center, half_axes in zip(mpc.opts.ellipse_centers, mpc.opts.ellipse_half_axes):
+            ellipse = patches.Ellipse(
+                xy=center, width=2*half_axes[0], height=2*half_axes[1], 
+                edgecolor='orange', facecolor='none', linestyle='dashed', linewidth=2
+            )
+            plt.gca().add_patch(ellipse)
+
     # Labels and settings
     plt.xlabel("$x_1$")
     plt.ylabel("$x_2$")
@@ -90,6 +103,8 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
     plt.legend()
     plt.grid()
     plt.show()
+
+
 
 
 

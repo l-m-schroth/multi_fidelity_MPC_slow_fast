@@ -17,16 +17,20 @@ class VanDerPolMPCOptions:
     d3: float = 5
 
     # MPC Parameters
-    step_size_list: List[float] = field(default_factory=lambda: [0.02] * 40)  # Corrected
+    step_size_list: List[float] = field(default_factory=lambda: [0.02] * 40)
     N: int = 40
     switch_stage: int = 20
-    nlp_solver_type: str = "SQP"  # "SQP_RTI" is another option
+    nlp_solver_type: str = "SQP"
     qp_solver: str = "FULL_CONDENSING_HPIPM"
 
-    # Cost Weights (Only for x1, x2 tracking)
-    Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))  # Corrected
-    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.001, 0.001]))  # Corrected
+    # Cost Weights
+    Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))
+    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.001, 0.001]))
 
+    # Elliptical Constraints (x1, x2 centers & half-axis lengths a and b)
+    ellipse_centers: Optional[np.ndarray] = None  # Shape (num_ellipses, 2)
+    ellipse_half_axes: Optional[np.ndarray] = None  # Shape (num_ellipses, 2), where each row is [a, b]
+   
 class VanDerPolMPC:
 
     def __init__(self, options: VanDerPolMPCOptions, Phi_t):
@@ -151,7 +155,27 @@ class VanDerPolMPC:
         # constraints
         if first_stage:
             ocp.constraints.x0 = np.zeros((nx,1)) # initial state constraint 
+        # Apply Circular Constraints if Provided
+        if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
+            ocp = self._add_region_constraints_to_ocp(ocp)
 
+        return ocp
+
+    def _add_region_constraints_to_ocp(self, ocp):
+        x1, x2 = ocp.model.x[0], ocp.model.x[1]
+        num_ellipses = self.opts.ellipse_centers.shape[0]
+        h_expr_list = []
+
+        for i in range(num_ellipses):
+            x1_c, x2_c = self.opts.ellipse_centers[i, :]
+            a, b = self.opts.ellipse_half_axes[i, :]
+            h_expr = ((x1 - x1_c) / a) ** 2 + ((x2 - x2_c) / b) ** 2 - 1
+            h_expr_list.append(h_expr)
+
+        ocp.model.con_h_expr = ca.vertcat(*h_expr_list)
+        ocp.dims.nh = len(h_expr_list)
+        ocp.constraints.lh = np.zeros(len(h_expr_list))
+        ocp.constraints.uh = np.full(len(h_expr_list), 1e15)
         return ocp
     
     def _create_vdp_3d_model(self):
@@ -237,6 +261,9 @@ class VanDerPolMPC:
         ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[0], ocp.model.x[1])
         ocp.cost.W = np.diag([0.0, 0.0])
         ocp.cost.yref = np.array([0., 0.]) # the reference values are overwritten later
+        # Apply Circular Constraints if Provided
+        if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
+            ocp = self._add_region_constraints_to_ocp(ocp)
         return ocp
 
     def _create_sim_3d(self, json_file_suffix="vdp_3d_sim"):

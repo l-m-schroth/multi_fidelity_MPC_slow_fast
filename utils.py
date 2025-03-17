@@ -1,6 +1,6 @@
 import numpy as np
 
-def simulate_closed_loop(x0, mpc, duration):
+def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0):
     # Compute number of steps based on the simulation solver step size
     dt_sim = mpc.opts.step_size_list[0]  
     num_steps = int(duration / dt_sim)
@@ -32,6 +32,8 @@ def simulate_closed_loop(x0, mpc, duration):
         mpc.acados_sim_solver_3d.solve()
 
         # Retrieve next state
-        x_traj[step + 1] = mpc.acados_sim_solver_3d.get("x")
+        # to account for simulation time step, the noise variance is scaled by dt
+        noise = np.random.normal(0, np.sqrt(sigma_noise*dt_sim), size=nx) 
+        x_traj[step + 1] = mpc.acados_sim_solver_3d.get("x") + noise
 
     return x_traj, u_traj
