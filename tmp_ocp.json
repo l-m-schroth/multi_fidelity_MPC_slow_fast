@@ -195,7 +195,7 @@
         "/usr/include/python3.10"
     ],
     "dims": {
-        "N": 8,
+        "N": 5,
         "n_global_data": 0,
         "nbu": 0,
         "nbx": 0,
@@ -303,8 +303,8 @@
     "shared_lib_ext": ".so",
     "simulink_opts": null,
     "solver_options": {
-        "N_horizon": 8,
-        "Tsim": 0.01,
+        "N_horizon": 5,
+        "Tsim": 0.008,
         "adaptive_levenberg_marquardt_lam": 5.0,
         "adaptive_levenberg_marquardt_mu0": 0.001,
         "adaptive_levenberg_marquardt_mu_min": 1e-16,
@@ -313,14 +313,11 @@
         "collocation_type": "GAUSS_LEGENDRE",
         "cost_discretization": "EULER",
         "cost_scaling": [
-            0.01,
-            0.01,
-            0.01,
-            0.01,
-            0.01,
+            0.008,
+            0.008,
             1.0,
-            0.025,
-            0.025,
+            0.06,
+            0.06,
             1.0
         ],
         "custom_templates": [],
@@ -367,7 +364,7 @@
         "num_threads_in_batch_solve": 1,
         "print_level": 0,
         "qp_solver": "FULL_CONDENSING_HPIPM",
-        "qp_solver_cond_N": 8,
+        "qp_solver_cond_N": 5,
         "qp_solver_cond_block_size": null,
         "qp_solver_cond_ric_alg": 1,
         "qp_solver_iter_max": 50,
@@ -384,19 +381,13 @@
         "rti_log_residuals": 0,
         "shooting_nodes": [
             0.0,
-            0.01,
-            0.02,
-            0.03,
-            0.04,
-            0.05,
-            1.05,
-            1.075,
-            1.0999999999999999
+            0.008,
+            0.016,
+            1.016,
+            1.076,
+            1.1360000000000001
         ],
         "sim_method_jac_reuse": [
-            0,
-            0,
-            0,
             0,
             0,
             0,
@@ -410,9 +401,6 @@
             4,
             4,
             4,
-            4,
-            4,
-            4,
             4
         ],
         "sim_method_num_steps": [
@@ -420,22 +408,16 @@
             1,
             1,
             1,
-            1,
-            1,
-            1,
             1
         ],
         "store_iterates": false,
-        "tf": 1.0999999999999999,
+        "tf": 1.1360000000000001,
         "time_steps": [
-            0.01,
-            0.01,
-            0.009999999999999998,
-            0.010000000000000002,
-            0.010000000000000002,
+            0.008,
+            0.008,
             1.0,
-            0.02499999999999991,
-            0.02499999999999991
+            0.06000000000000005,
+            0.06000000000000005
         ],
         "timeout_heuristic": "LAST",
         "timeout_max_time": 0.0,

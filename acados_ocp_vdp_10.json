@@ -211,7 +211,7 @@
         "/usr/include/python3.10"
     ],
     "dims": {
-        "N": 5,
+        "N": 4,
         "n_global_data": 0,
         "nbu": 0,
         "nbx": 0,
@@ -312,8 +312,8 @@
         "dyn_impl_dae_fun": null,
         "dyn_impl_dae_fun_jac": null,
         "dyn_impl_dae_jac": null,
-        "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachlaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgidppppppchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachgbaaaaaaaaaaaaaa",
-        "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgidppppppchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachhbaaaaaaaaaaaaaachhaaaaaaaaaaaaaaa",
+        "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachlaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachhlnglnglnglnbhamchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachgbaaaaaaaaaaaaaa",
+        "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachhlnglnglnglnbhamchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachhbaaaaaaaaaaaaaachhaaaaaaaaaaaaaaa",
         "gnsf_nontrivial_f_LO": 1,
         "gnsf_purely_linear": 0,
         "name": "vdp_3d",
@@ -337,8 +337,8 @@
     "shared_lib_ext": ".so",
     "simulink_opts": null,
     "solver_options": {
-        "N_horizon": 5,
-        "Tsim": 0.01,
+        "N_horizon": 4,
+        "Tsim": 0.008,
         "adaptive_levenberg_marquardt_lam": 5.0,
         "adaptive_levenberg_marquardt_mu0": 0.001,
         "adaptive_levenberg_marquardt_mu_min": 1e-16,
@@ -347,11 +347,10 @@
         "collocation_type": "GAUSS_LEGENDRE",
         "cost_discretization": "EULER",
         "cost_scaling": [
-            0.01,
-            0.01,
-            0.01,
-            0.01,
-            0.01,
+            0.008,
+            0.008,
+            0.04,
+            0.04,
             1.0
         ],
         "custom_templates": [],
@@ -398,7 +397,7 @@
         "num_threads_in_batch_solve": 1,
         "print_level": 0,
         "qp_solver": "FULL_CONDENSING_HPIPM",
-        "qp_solver_cond_N": 5,
+        "qp_solver_cond_N": 4,
         "qp_solver_cond_block_size": null,
         "qp_solver_cond_ric_alg": 1,
         "qp_solver_iter_max": 50,
@@ -415,14 +414,12 @@
         "rti_log_residuals": 0,
         "shooting_nodes": [
             0.0,
-            0.01,
-            0.02,
-            0.03,
-            0.04,
-            0.05
+            0.008,
+            0.016,
+            0.056,
+            0.096
         ],
         "sim_method_jac_reuse": [
-            0,
             0,
             0,
             0,
@@ -434,24 +431,21 @@
             4,
             4,
             4,
-            4,
             4
         ],
         "sim_method_num_steps": [
             1,
             1,
             1,
-            1,
             1
         ],
         "store_iterates": false,
-        "tf": 0.05,
+        "tf": 0.096,
         "time_steps": [
-            0.01,
-            0.01,
-            0.01,
-            0.01,
-            0.01
+            0.008,
+            0.008,
+            0.04,
+            0.04
         ],
         "timeout_heuristic": "LAST",
         "timeout_max_time": 0.0,
