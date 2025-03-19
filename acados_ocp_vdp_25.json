@@ -211,7 +211,7 @@
         "/usr/include/python3.10"
     ],
     "dims": {
-        "N": 25,
+        "N": 22,
         "n_global_data": 0,
         "nbu": 0,
         "nbx": 0,
@@ -337,7 +337,7 @@
     "shared_lib_ext": ".so",
     "simulink_opts": null,
     "solver_options": {
-        "N_horizon": 25,
+        "N_horizon": 22,
         "Tsim": 0.002,
         "adaptive_levenberg_marquardt_lam": 5.0,
         "adaptive_levenberg_marquardt_mu0": 0.001,
@@ -367,11 +367,8 @@
             0.002,
             0.002,
             0.002,
-            0.01,
-            0.01,
-            0.01,
-            0.01,
-            0.01,
+            0.05,
+            0.05,
             1.0
         ],
         "custom_templates": [],
@@ -418,7 +415,7 @@
         "num_threads_in_batch_solve": 1,
         "print_level": 0,
         "qp_solver": "PARTIAL_CONDENSING_HPIPM",
-        "qp_solver_cond_N": 25,
+        "qp_solver_cond_N": 22,
         "qp_solver_cond_block_size": null,
         "qp_solver_cond_ric_alg": 1,
         "qp_solver_iter_max": 50,
@@ -455,16 +452,10 @@
             0.03600000000000002,
             0.03800000000000002,
             0.04000000000000002,
-            0.050000000000000024,
-            0.060000000000000026,
-            0.07000000000000002,
-            0.08000000000000002,
-            0.09000000000000001
+            0.09000000000000002,
+            0.14
         ],
         "sim_method_jac_reuse": [
-            0,
-            0,
-            0,
             0,
             0,
             0,
@@ -512,9 +503,6 @@
             4,
             4,
             4,
-            4,
-            4,
-            4,
             4
         ],
         "sim_method_num_steps": [
@@ -539,13 +527,10 @@
             1,
             1,
             1,
-            1,
-            1,
-            1,
             1
         ],
         "store_iterates": false,
-        "tf": 0.09000000000000001,
+        "tf": 0.14,
         "time_steps": [
             0.002,
             0.002,
@@ -567,11 +552,8 @@
             0.002,
             0.002,
             0.002,
-            0.01,
-            0.01,
-            0.01,
-            0.01,
-            0.01
+            0.05,
+            0.05
         ],
         "timeout_heuristic": "LAST",
         "timeout_max_time": 0.0,

@@ -3,6 +3,7 @@ from typing import List, Optional
 import numpy as np
 from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver, AcadosSim, AcadosSimSolver, AcadosMultiphaseOcp
 import casadi as ca
+import time
 
 @dataclass
 class VanDerPolMPCOptions:
@@ -25,11 +26,12 @@ class VanDerPolMPCOptions:
 
     # Cost Weights
     Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))
-    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.005, 0.005]))
+    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.002, 0.002]))
 
     # Elliptical Constraints (x1, x2 centers & half-axis lengths a and b)
     ellipse_centers: Optional[np.ndarray] = None  # Shape (num_ellipses, 2)
     ellipse_half_axes: Optional[np.ndarray] = None  # Shape (num_ellipses, 2), where each row is [a, b]
+
    
 class VanDerPolMPC:
 
@@ -39,6 +41,9 @@ class VanDerPolMPC:
         """
         self.opts = options  # Store options as self.opts
         self.Phi_t = Phi_t
+
+        # time stamp to avoid solvers interfering with each other
+        self.timestamp = int(time.time()*1000)
 
         self.multi_phase = False
         if self.opts.switch_stage == 0:
@@ -53,7 +58,7 @@ class VanDerPolMPC:
             self._create_multiphase_ocp()
 
         # Create Acados Solver
-        json_file = f"acados_ocp_vdp_{self.opts.switch_stage}.json"
+        json_file = f"acados_ocp_vdp_{self.opts.switch_stage}_{self.timestamp}.json"
         self.acados_ocp_solver = AcadosOcpSolver(self.total_ocp, json_file=json_file)
 
         # if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
@@ -64,6 +69,7 @@ class VanDerPolMPC:
 
         # Create Acados Simulation Solver (for closed-loop simulation)
         self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
+
 
     def _create_multiphase_ocp(self):
         """
@@ -166,8 +172,8 @@ class VanDerPolMPC:
             ocp = self._add_region_constraints_to_ocp(ocp)
 
         # box constraints for u, necessary to prevent jittering
-        # u_min = np.array([-10.0, -10.0])  # Example: Min control limits
-        # u_max = np.array([10.0, 10.0])    # Example: Max control limits
+        # u_min = np.array([-100.0, -100.0])  # Example: Min control limits
+        # u_max = np.array([100.0, 100.0])    # Example: Max control limits
 
         # # Apply box constraints on control inputs
         # ocp.constraints.lbu = u_min
@@ -193,6 +199,11 @@ class VanDerPolMPC:
         ocp.dims.nh = len(h_expr_list)
         ocp.constraints.lh = np.zeros(len(h_expr_list))
         ocp.constraints.uh = np.full(len(h_expr_list), 1e15)
+
+        ocp.model.con_h_expr_e = h_expr_full
+        ocp.dims.nh_e = len(h_expr_list)
+        ocp.constraints.lh_e = np.zeros(len(h_expr_list))
+        ocp.constraints.uh_e = np.full(len(h_expr_list), 1e15)
         # ocp.constraints.idxsh = np.arange(len(h_expr_list))
         # ocp.cost.Zl = np.full(len(h_expr_list), 4.0)
         # ocp.cost.Zu = np.full(len(h_expr_list), 4.0)
@@ -241,7 +252,7 @@ class VanDerPolMPC:
         xdot = ca.vertcat(dx1, dx2, dx3)
 
         model = AcadosModel()
-        model.name = "vdp_3d"
+        model.name = f"vdp_3d_{self.timestamp}"
         model.x = x
         model.u = u
         model.f_expl_expr = xdot
@@ -272,7 +283,7 @@ class VanDerPolMPC:
         xdot = ca.vertcat(dx1, dx2)
 
         model = AcadosModel()
-        model.name = "vdp_2d"
+        model.name = f"vdp_2d_{self.timestamp}"
         model.x = x
         model.u = u
         model.f_expl_expr = xdot
@@ -282,7 +293,7 @@ class VanDerPolMPC:
     
     def _create_transition_model(self):
         model = AcadosModel()
-        model.name = 'transition_model'
+        model.name = f'transition_model_{self.timestamp}'
         x1 = ca.SX.sym("x1")
         x2 = ca.SX.sym("x2")
         x3 = ca.SX.sym("x3")

@@ -48,6 +48,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, sim_solver=None, co
     
     # Initialize control input (zero-order hold approach)
     u_opt = np.zeros(nu)
+    stage_costs = []
     
     for step in range(num_steps):
         t = step * dt_sim
@@ -58,6 +59,10 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, sim_solver=None, co
         
         u_traj[step] = u_opt
 
+        # save stage costs
+        stage_cost = x_traj[step][:2].T @ mpc.opts.Q_2d @ x_traj[step][:2] +  u_opt.T @ mpc.opts.R_2d @ u_opt
+        stage_costs.append(stage_cost)
+
         # Simulate one step using Acados Sim Solver
         sim_solver.set("x", x_traj[step])
         sim_solver.set("u", u_opt)
@@ -67,4 +72,4 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, sim_solver=None, co
         noise = np.random.normal(0, np.sqrt(sigma_noise * dt_sim), size=nx)
         x_traj[step + 1] = sim_solver.get("x") + noise
     
-    return x_traj, u_traj
+    return x_traj, u_traj, stage_costs
