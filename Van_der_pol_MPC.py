@@ -21,11 +21,11 @@ class VanDerPolMPCOptions:
     N: int = 40
     switch_stage: int = 20
     nlp_solver_type: str = "SQP"
-    qp_solver: str = "FULL_CONDENSING_HPIPM"
+    qp_solver: str = "PARTIAL_CONDENSING_HPIPM"
 
     # Cost Weights
     Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))
-    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.001, 0.001]))
+    R_2d: np.ndarray = field(default_factory=lambda: np.diag([0.005, 0.005]))
 
     # Elliptical Constraints (x1, x2 centers & half-axis lengths a and b)
     ellipse_centers: Optional[np.ndarray] = None  # Shape (num_ellipses, 2)
@@ -55,6 +55,12 @@ class VanDerPolMPC:
         # Create Acados Solver
         json_file = f"acados_ocp_vdp_{self.opts.switch_stage}.json"
         self.acados_ocp_solver = AcadosOcpSolver(self.total_ocp, json_file=json_file)
+
+        # if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
+        #     # This removes the ellipsoidal constraint from the first stage, as it can cause problems in erroneous sim.
+        #     # It is done such that the x0 is not infeasible. Acados python interface does not support different
+        #     # constraints for different stages, it needs to be done in this hacky way.
+        #     self.remove_constraints_from_first_stage()
 
         # Create Acados Simulation Solver (for closed-loop simulation)
         self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
@@ -159,6 +165,15 @@ class VanDerPolMPC:
         if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
             ocp = self._add_region_constraints_to_ocp(ocp)
 
+        # box constraints for u, necessary to prevent jittering
+        # u_min = np.array([-10.0, -10.0])  # Example: Min control limits
+        # u_max = np.array([10.0, 10.0])    # Example: Max control limits
+
+        # # Apply box constraints on control inputs
+        # ocp.constraints.lbu = u_min
+        # ocp.constraints.ubu = u_max
+        # ocp.constraints.idxbu = np.array([0, 1])  # Apply to both control inputs
+
         return ocp
 
     def _add_region_constraints_to_ocp(self, ocp):
@@ -172,11 +187,32 @@ class VanDerPolMPC:
             h_expr = ((x1 - x1_c) / a) ** 2 + ((x2 - x2_c) / b) ** 2 - 1
             h_expr_list.append(h_expr)
 
-        ocp.model.con_h_expr = ca.vertcat(*h_expr_list)
+        h_expr_full = ca.vertcat(*h_expr_list)
+
+        ocp.model.con_h_expr = h_expr_full
         ocp.dims.nh = len(h_expr_list)
         ocp.constraints.lh = np.zeros(len(h_expr_list))
         ocp.constraints.uh = np.full(len(h_expr_list), 1e15)
+        # ocp.constraints.idxsh = np.arange(len(h_expr_list))
+        # ocp.cost.Zl = np.full(len(h_expr_list), 4.0)
+        # ocp.cost.Zu = np.full(len(h_expr_list), 4.0)
+        # ocp.cost.zl = np.full(len(h_expr_list), 2.0)
+        # ocp.cost.zu = np.full(len(h_expr_list), 2.0)
+        
         return ocp
+    
+    # def remove_constraints_from_first_stage(self):
+    #     """
+    #     Removes the elliptical constraints from stage 0 by setting very small lower bounds 
+    #     and very large upper bounds to effectively deactivate them.
+    #     """
+    #     # Get number of constraints
+    #     num_constraints = self.opts.ellipse_centers.shape[0]
+
+    #     # Remove constraints at stage 0 by setting loose bounds
+    #     self.acados_ocp_solver.constraints_set(0, "lh", np.full(num_constraints, -1e15))  # Large negative bound
+    #     self.acados_ocp_solver.constraints_set(0, "uh", np.full(num_constraints, 1e15))   # Large positive bound
+
     
     def _create_vdp_3d_model(self):
         """

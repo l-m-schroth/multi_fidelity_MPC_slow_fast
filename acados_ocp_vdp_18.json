@@ -1,9 +1,9 @@
 {
-    "N_horizon": 5,
+    "N_horizon": 23,
     "N_list": [
-        2,
+        18,
         1,
-        2
+        4
     ],
     "acados_include_path": "/home/lukas/ETH_Zuerich/ASL_Stanford_Masterthesis/Workspace/acados/include",
     "acados_lib_path": "/home/lukas/ETH_Zuerich/ASL_Stanford_Masterthesis/Workspace/acados/lib",
@@ -282,14 +282,14 @@
                 [
                     0.0,
                     0.0,
-                    0.001,
+                    0.005,
                     0.0
                 ],
                 [
                     0.0,
                     0.0,
                     0.0,
-                    0.001
+                    0.005
                 ]
             ],
             "W_0": [
@@ -308,14 +308,14 @@
                 [
                     0.0,
                     0.0,
-                    0.001,
+                    0.005,
                     0.0
                 ],
                 [
                     0.0,
                     0.0,
                     0.0,
-                    0.001
+                    0.005
                 ]
             ],
             "W_e": [
@@ -456,14 +456,14 @@
                 [
                     0.0,
                     0.0,
-                    0.001,
+                    0.005,
                     0.0
                 ],
                 [
                     0.0,
                     0.0,
                     0.0,
-                    0.001
+                    0.005
                 ]
             ],
             "W_0": [
@@ -482,14 +482,14 @@
                 [
                     0.0,
                     0.0,
-                    0.001,
+                    0.005,
                     0.0
                 ],
                 [
                     0.0,
                     0.0,
                     0.0,
-                    0.001
+                    0.005
                 ]
             ],
             "W_e": [
@@ -546,18 +546,18 @@
     ],
     "cost_start_idx": [
         1,
-        2,
-        3,
-        5
+        18,
+        19,
+        23
     ],
     "cython_include_dirs": [
         "/home/lukas/ETH_Zuerich/ASL_Stanford_Masterthesis/venv/lib/python3.10/site-packages/numpy/core/include",
         "/usr/include/python3.10"
     ],
     "end_idx": [
-        2,
-        3,
-        5
+        18,
+        19,
+        23
     ],
     "external_function_files_model": [
         "vdp_3d_model/vdp_3d_expl_ode_fun.c",
@@ -602,7 +602,7 @@
         "vdp_2d_cost/vdp_2d_cost_y_e_fun_jac_ut_xt.c",
         "vdp_2d_cost/vdp_2d_cost_y_e_hess.c"
     ],
-    "json_file": "acados_ocp_vdp_2.json",
+    "json_file": "acados_ocp_vdp_18.json",
     "mocp_opts": {
         "collocation_type": [
             "GAUSS_LEGENDRE",
@@ -661,8 +661,8 @@
             "dyn_impl_dae_fun": null,
             "dyn_impl_dae_fun_jac": null,
             "dyn_impl_dae_jac": null,
-            "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachlaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachfeodlogadfeoahamchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachgbaaaaaaaaaaaaaa",
-            "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachfeodlogadfeoahamchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachhbaaaaaaaaaaaaaachhaaaaaaaaaaaaaaa",
+            "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachgggggggggggggopdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachlaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgmjppppppchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachgbaaaaaaaaaaaaaa",
+            "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachgggggggggggggopdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgmjppppppchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachhbaaaaaaaaaaaaaachhaaaaaaaaaaaaaaa",
             "gnsf_nontrivial_f_LO": 1,
             "gnsf_purely_linear": 0,
             "name": "vdp_3d",
@@ -777,8 +777,8 @@
             "dyn_impl_dae_fun": null,
             "dyn_impl_dae_fun_jac": null,
             "dyn_impl_dae_jac": null,
-            "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeggaaaaaaaaaaaaaaacaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcd",
-            "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeggaaaaaaaaaaaaaaacaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachgaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachgaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaa",
+            "f_expl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeggaaaaaaaaaaaaaaacaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachgggggggggggggopdegpcaaaaaaaaaaaaaacaaaaaaafhbdegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihbdchbaaaaaaaaaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcd",
+            "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeggaaaaaaaaaaaaaaacaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachgggggggggggggopdegpcaaaaaaaaaaaaaacaaaaaaafhbdegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachgaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachgaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaa",
             "gnsf_nontrivial_f_LO": 1,
             "gnsf_purely_linear": 0,
             "name": "vdp_2d",
@@ -797,7 +797,7 @@
         }
     ],
     "n_phases": 3,
-    "name": "multiphase_ocp_2_1_2_20250318_141902_538883",
+    "name": "multiphase_ocp_18_1_4_20250318_154850_906922",
     "p_global_values": [],
     "parameter_values": [
         [],
@@ -806,7 +806,7 @@
     ],
     "phases_dims": [
         {
-            "N": 5,
+            "N": 23,
             "n_global_data": 0,
             "nbu": 0,
             "nbx": 0,
@@ -849,7 +849,7 @@
             "nz": 0
         },
         {
-            "N": 5,
+            "N": 23,
             "n_global_data": 0,
             "nbu": 0,
             "nbx": 0,
@@ -892,7 +892,7 @@
             "nz": 0
         },
         {
-            "N": 5,
+            "N": 23,
             "n_global_data": 0,
             "nbu": 0,
             "nbx": 0,
@@ -939,17 +939,35 @@
     "shared_lib_ext": ".so",
     "simulink_opts": null,
     "solver_options": {
-        "N_horizon": 5,
-        "Tsim": 0.008,
+        "N_horizon": 23,
+        "Tsim": 0.002,
         "adaptive_levenberg_marquardt_lam": 5.0,
         "adaptive_levenberg_marquardt_mu0": 0.001,
         "adaptive_levenberg_marquardt_mu_min": 1e-16,
         "as_rti_iter": 1,
         "as_rti_level": 4,
         "cost_scaling": [
-            0.008,
-            0.008,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
             1.0,
+            0.06,
+            0.06,
             0.06,
             0.06,
             1.0
@@ -996,8 +1014,8 @@
         "nlp_solver_warm_start_first_qp": false,
         "num_threads_in_batch_solve": 1,
         "print_level": 0,
-        "qp_solver": "FULL_CONDENSING_HPIPM",
-        "qp_solver_cond_N": 5,
+        "qp_solver": "PARTIAL_CONDENSING_HPIPM",
+        "qp_solver_cond_N": 23,
         "qp_solver_cond_block_size": null,
         "qp_solver_cond_ric_alg": 1,
         "qp_solver_iter_max": 50,
@@ -1014,13 +1032,49 @@
         "rti_log_residuals": 0,
         "shooting_nodes": [
             0.0,
+            0.002,
+            0.004,
+            0.006,
             0.008,
+            0.01,
+            0.012,
+            0.014,
             0.016,
-            1.016,
-            1.076,
-            1.1360000000000001
+            0.018000000000000002,
+            0.020000000000000004,
+            0.022000000000000006,
+            0.024000000000000007,
+            0.02600000000000001,
+            0.02800000000000001,
+            0.030000000000000013,
+            0.032000000000000015,
+            0.034000000000000016,
+            0.03600000000000002,
+            1.036,
+            1.096,
+            1.1560000000000001,
+            1.2160000000000002,
+            1.2760000000000002
         ],
         "sim_method_jac_reuse": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
             0,
             0,
             0,
@@ -1034,6 +1088,24 @@
             4,
             4,
             4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
             4
         ],
         "sim_method_num_steps": [
@@ -1041,14 +1113,50 @@
             1,
             1,
             1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
             1
         ],
         "store_iterates": false,
-        "tf": 1.1360000000000001,
+        "tf": 1.2760000000000002,
         "time_steps": [
-            0.008,
-            0.008,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.002,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
+            0.0020000000000000018,
             1.0,
+            0.06000000000000005,
+            0.06000000000000005,
             0.06000000000000005,
             0.06000000000000005
         ],
@@ -1060,7 +1168,7 @@
     },
     "start_idx": [
         0,
-        2,
-        3
+        18,
+        19
     ]
 }
