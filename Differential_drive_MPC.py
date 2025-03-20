@@ -23,7 +23,10 @@ class DifferentialDriveMPCOptions:
     omega_max: float = .5
     N: int = 20
     step_sizes: List[float] = field(default_factory=lambda: [0.01]*20)  # Fix: Use default_factory
-    switch_stage: int = 21 
+    switch_stage: int = 21
+    Q_mat_full = 2 * np.diag([1e2, 1e2, 1e-4, 1e0, 1e-3, 5e-1, 5e-1])
+    Q_mat_approx: np.array = 2 * np.diag([1e2, 1e2, 1e-4, 1e-0, 1e-3])  # [x,y,x_d,y_d,th,th_d]
+    R_mat_approx: np.array = 2 * 5 * np.diag([1e-1, 1e-1]) 
 
 class DifferentialDriveMPC:
 
@@ -34,12 +37,15 @@ class DifferentialDriveMPC:
         self.timestamp = int(time.time()*1000)
         
         # generate ocp
+        self.multi_phase = False
         if self.opts.switch_stage == 0:
             ValueError("Switch stage cannot be zero in this problem, exact model has to be used at least for a part of the horizon")
         if self.opts.switch_stage >= self.opts.N:
             self.total_ocp = self.get_diff_drive_ocp_with_actuators(options)
         else:
-            self.total_ocp = self.get_multiphase_ocp_actuation_to_diff_drive(self, self.opts)
+            # multi phase case
+            self.multi_phase = True
+            self.total_ocp = self.get_multiphase_ocp_actuation_to_diff_drive(self.opts)
 
         # Create Acados Solver
         json_file = f"acados_ocp_diff_drive_{self.opts.switch_stage}_{self.timestamp}.json"
@@ -53,11 +59,24 @@ class DifferentialDriveMPC:
         self.acados_ocp_solver.set(0, "lbx", x0)
         self.acados_ocp_solver.set(0, "ubx", x0)
 
-    def solve(self, x0, t0):
+    def get_planned_trajectory(self):
+        N = self.opts.N
+        if self.multi_phase:
+            N += 1 # in multi-phase case, we need to account for the switching stage
+        traj_x, traj_u = [], []
+        for i in range(N):  # N+1 due to transition stage
+            x_i = self.acados_ocp_solver.get(i, "x")
+            u_i = self.acados_ocp_solver.get(i, "u")
+            traj_x.append(x_i)
+            traj_u.append(u_i)
+        x_N = self.acados_ocp_solver.get(N, "x")
+        traj_x.append(x_N)
+        return traj_x, traj_u
+
+    def solve(self, x0):
         """
         Solves the MPC problem:
         1. Sets the initial guess with x0.
-        2. Sets the reference trajectory using self.Phi_t at time t.
         3. Solves the OCP.
         """
         # Set initial guess
@@ -260,14 +279,14 @@ class DifferentialDriveMPC:
         transition_ocp.cost.cost_type = "NONLINEAR_LS"
         transition_ocp.model.cost_y_expr = model.x
         transition_ocp.cost.W = 1e-7 * np.eye(model.x.rows())
-        transition_ocp.cost.W[-2:, -2:] = options.step_sizes[0] * 1e0 * np.eye(2)
+        transition_ocp.cost.W[-2:, -2:] = options.step_sizes[self.opts.switch_stage-1] * 1e0 * np.eye(2)
         transition_ocp.cost.yref = np.zeros((model.x.rows(),))
         ocp.set_phase(transition_ocp, 1)
 
-        ocp_1 = self.get_diff_drive_ocp_no_actuators(options, "diff_drive")
+        ocp_1 = self.get_diff_drive_ocp_no_actuators(options)
         ocp.set_phase(ocp_1, 2)
         ocp.solver_options = ocp_0.solver_options
-        ocp.solver_options.tf = options.T_horizon + 1
+        ocp.solver_options.tf = sum(options.step_sizes) + 1
         step_sizes_list_with_transition = self.opts.step_sizes[:self.opts.switch_stage] + [1.0] + self.opts.step_sizes[self.opts.switch_stage:]
         ocp.solver_options.time_steps = np.array(step_sizes_list_with_transition)
 
@@ -308,11 +327,11 @@ class DifferentialDriveMPC:
 
         # set dimensions
         ocp.solver_options.N_horizon = N_horizon
-        ocp.solver_options.tf = options.T_horizon
+        #ocp.solver_options.tf = options.T_horizon
 
         # set cost
-        Q_mat = 2 * np.diag([1e3, 1e3, 1e-4, 1e-0, 1e-3])  # [x,y,x_d,y_d,th,th_d]
-        R_mat = 2 * 5 * np.diag([1e-1, 1e-1])
+        Q_mat = self.opts.Q_mat_approx
+        R_mat = self.opts.R_mat_approx
 
         ocp.cost.cost_type = "LINEAR_LS"
         ocp.cost.cost_type_e = "LINEAR_LS"
@@ -363,7 +382,7 @@ class DifferentialDriveMPC:
         ocp.solver_options.tf = sum(options.step_sizes)
 
         # set cost
-        Q_mat = 2 * np.diag([1e3, 1e3, 1e-4, 1e0, 1e-3, 5e-1, 5e-1])  # [x_pos, y_pos, v, theta, omega, i_1, i_2]
+        Q_mat = self.opts.Q_mat_full # [x_pos, y_pos, v, theta, omega, i_1, i_2]
         # R_mat = 2 * 5 * np.diag([1e-5, 1e-5])
 
         ocp.cost.cost_type = "LINEAR_LS"
