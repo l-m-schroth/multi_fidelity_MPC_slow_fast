@@ -13,9 +13,9 @@
         "nz": 0
     },
     "external_function_files_model": [
-        "vdp_3d_1742373741047_model/vdp_3d_1742373741047_expl_ode_fun.c",
-        "vdp_3d_1742373741047_model/vdp_3d_1742373741047_expl_vde_forw.c",
-        "vdp_3d_1742373741047_model/vdp_3d_1742373741047_expl_vde_adj.c"
+        "vdp_3d_1742422760388_model/vdp_3d_1742422760388_expl_ode_fun.c",
+        "vdp_3d_1742422760388_model/vdp_3d_1742422760388_expl_vde_forw.c",
+        "vdp_3d_1742422760388_model/vdp_3d_1742422760388_expl_vde_adj.c"
     ],
     "model": {
         "con_h_expr": null,
@@ -61,7 +61,7 @@
         "f_impl_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihcdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachkjjjjjjjjjjjjnpdegpcaaaaaaaaaaaaaacaaaaaaafhbdegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgkaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaaihddegpcaaaaaaaaaaaaaacaaaaaaaihbdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachdddddddddddddnpdchbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgfaaaaaaachhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaacaaaaaaafhcdchbaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaachfeodlogadfeoahamchhaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgicaaaaaachhbaaaaaaaaaaaaaachhaaaaaaaaaaaaaaa",
         "gnsf_nontrivial_f_LO": 1,
         "gnsf_purely_linear": 0,
-        "name": "vdp_3d_1742373741047",
+        "name": "vdp_3d_1742422760388",
         "nu_original": null,
         "p": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "p_global": null,
@@ -79,7 +79,7 @@
     "problem_class": "SIM",
     "shared_lib_ext": ".so",
     "solver_options": {
-        "Tsim": 0.008,
+        "Tsim": 0.006,
         "collocation_type": "GAUSS_LEGENDRE",
         "ext_fun_compile_flags": "-O2",
         "integrator_type": "ERK",
