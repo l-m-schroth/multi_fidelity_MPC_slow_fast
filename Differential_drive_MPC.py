@@ -11,8 +11,8 @@ import time
 
 @dataclass
 class DifferentialDriveMPCOptions:
-    # qp_solver: str = "FULL_CONDENSING_DAQP"
-    qp_solver: str = "PARTIAL_CONDENSING_HPIPM"
+    #qp_solver: str = "FULL_CONDENSING_DAQP"
+    qp_solver:str = "PARTIAL_CONDENSING_HPIPM"
     sim_method_num_steps: int = 1
     cost_discretization: str = "EULER"
     globalization: str = "FIXED_STEP"
@@ -22,11 +22,20 @@ class DifferentialDriveMPCOptions:
     T_max: float = 20.
     omega_max: float = .5
     N: int = 20
+    integrator_type = "IRK"
     step_sizes: List[float] = field(default_factory=lambda: [0.01]*20)  # Fix: Use default_factory
     switch_stage: int = 21
-    Q_mat_full = 2 * np.diag([1e2, 1e2, 1e-4, 1e0, 1e-3, 5e-1, 5e-1])
-    Q_mat_approx: np.array = 2 * np.diag([1e2, 1e2, 1e-4, 1e-0, 1e-3])  # [x,y,x_d,y_d,th,th_d]
-    R_mat_approx: np.array = 2 * 5 * np.diag([1e-1, 1e-1]) 
+    Q_mat_full = 2 * np.diag([1e4, 1e4, 1e-4, 5e3, 1e-3, 5e-1, 5e-1])
+    Q_mat_approx: np.array = 2 * np.diag([1e4, 1e4, 1e-4, 5e3, 1e-3])  # [x,y,x_d,y_d,th,th_d]
+    R_mat_approx: np.array = 2 * 5 * np.diag([1e-1, 1e-1])
+
+    # Elliptical Constraints (x1, x2 centers & half-axis lengths a and b)
+    ellipse_centers: Optional[np.ndarray] = None  # Shape (num_ellipses, 2)
+    ellipse_half_axes: Optional[np.ndarray] = None  # Shape (num_ellipses, 2), where each row is [a, b] 
+
+    # box obstacles
+    box_obstacles: Optional[np.ndarray] = None  # Shape (num_boxes, 4), where each row is [x_min, x_max, y_min, y_max]
+
 
 class DifferentialDriveMPC:
 
@@ -52,7 +61,7 @@ class DifferentialDriveMPC:
         self.acados_ocp_solver = AcadosOcpSolver(self.total_ocp, json_file=json_file)
 
         # Create Acados Simulation Solver (for closed-loop simulation)
-        self.acados_sim_solver = self._create_sim(json_file_suffix="vdp_3d_sim")
+        self.acados_sim_solver, self.acados_sim_solver_no_act = self._create_sim(json_file_suffix=f"diff_drive_sim_{self.timestamp}")
         
     ### general functionality ### 
     def set_initial_state(self, x0):
@@ -91,7 +100,7 @@ class DifferentialDriveMPC:
         # Return first control input
         return self.acados_ocp_solver.get(0, "u")
     
-    def _create_sim(self, json_file_suffix="vdp_3d_sim"):
+    def _create_sim(self, json_file_suffix="diff_drive_sim"):
         """
         Creates an AcadosSim solver for the 3D model (useful for closed-loop simulation).
         """
@@ -101,10 +110,21 @@ class DifferentialDriveMPC:
 
         # Pick a step size for simulation (same as the first step size)
         sim.solver_options.T = self.opts.step_sizes[0]
-        sim.solver_options.integrator_type = "IRK"
+        sim.solver_options.integrator_type = self.opts.integrator_type
         
-        sim_solver = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
-        return sim_solver
+        sim_solver_7d = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
+
+        # Create sim with 5 dimensional model only
+        model = self.get_diff_drive_model()
+        sim = AcadosSim()
+        sim.model = model
+
+        # Pick a step size for simulation (same as the first step size)
+        sim.solver_options.T = self.opts.step_sizes[0]
+        sim.solver_options.integrator_type = self.opts.integrator_type
+
+        sim_solver_5d = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
+        return sim_solver_7d, sim_solver_5d
 
     ### Functions to generate the models """    
 
@@ -167,7 +187,7 @@ class DifferentialDriveMPC:
         """
         Creates the differential drive model with actuator model
         """
-        model_name = "actuators_diff_drive"
+        model_name = "actuators_diff_drive_with_actuators"
 
         # set up states & controls
         x_pos = ca.SX.sym("x_pos")
@@ -291,7 +311,7 @@ class DifferentialDriveMPC:
         ocp.solver_options.time_steps = np.array(step_sizes_list_with_transition)
 
         ocp.mocp_opts.cost_discretization = [options.cost_discretization, "EULER", options.cost_discretization]
-        ocp.mocp_opts.integrator_type = ["IRK", "DISCRETE", "IRK"]
+        ocp.mocp_opts.integrator_type = [options.integrator_type, "DISCRETE", options.integrator_type]
         return ocp
 
 
@@ -299,20 +319,21 @@ class DifferentialDriveMPC:
         # set options
         ocp.solver_options.qp_solver = options.qp_solver
         ocp.solver_options.hessian_approx = "GAUSS_NEWTON"
-        ocp.solver_options.integrator_type = "IRK"
+        ocp.solver_options.integrator_type = options.integrator_type
         ocp.solver_options.nlp_solver_type = options.nlp_solver_type
         ocp.solver_options.sim_method_num_stages = 3
         ocp.solver_options.sim_method_num_steps = options.sim_method_num_steps
         ocp.solver_options.globalization = options.globalization
         ocp.solver_options.cost_discretization = options.cost_discretization
-        # ocp.solver_options.qp_solver_iter_max = 400
-        ocp.solver_options.nlp_solver_max_iter = 400
-        # ocp.solver_options.levenberg_marquardt = 1e-4
+        ocp.solver_options.qp_solver_iter_max = 1000
+        ocp.solver_options.nlp_solver_max_iter = 600
+        ocp.solver_options.levenberg_marquardt = 1e-4
         # if options.nlp_solver_type == "SQP":
             # ocp.solver_options.globalization = "MERIT_BACKTRACKING"
         # ocp.solver_options.qp_solver_cond_N = options.qp_solver_cond_N
         ocp.solver_options.tol = 1e-6
         ocp.solver_options.qp_tol = 1e-2 * ocp.solver_options.tol
+        #ocp.solver_options.print_level = 2
         # ocp.solver_options.nlp_solver_ext_qp_res = 1
 
     def get_diff_drive_ocp_no_actuators(self, options: DifferentialDriveMPCOptions) -> AcadosOcp:
@@ -361,6 +382,9 @@ class DifferentialDriveMPC:
         ocp.constraints.idxbx = np.array([2, 4])
         ocp.constraints.ubx = np.array([1., self.opts.omega_max])
         ocp.constraints.lbx = np.array([0., -self.opts.omega_max])
+
+        if self.opts.ellipse_centers is not None:
+            ocp = self._add_region_constraints_to_ocp(ocp)
 
         ocp.constraints.x0 = np.zeros(nx)
 
@@ -416,30 +440,82 @@ class DifferentialDriveMPC:
         ocp.constraints.ubx = np.array([1., self.opts.omega_max])
         ocp.constraints.lbx = np.array([0., -self.opts.omega_max])
 
-        # compute power
-        ocp.model.con_h_expr = ca.vertcat(model.u[0] * model.x[5], model.u[1] * model.x[6])
-        ocp.model.con_h_expr_0 = ocp.model.con_h_expr
+        # # compute power
+        # ocp.model.con_h_expr = ca.vertcat(model.u[0] * model.x[5], model.u[1] * model.x[6])
+        # ocp.model.con_h_expr_0 = ocp.model.con_h_expr
 
-        nh = 2
-        ocp.constraints.idxsh = np.arange(2)
-        ocp.constraints.lh = np.zeros((nh, ))
-        ocp.constraints.uh = np.zeros((nh, ))
-        ocp.cost.zl = 1e0 * np.ones((nh, ))
-        ocp.cost.zu = 1e0 * np.ones((nh, ))
-        ocp.cost.Zl = 0e0 * np.ones((nh, ))
-        ocp.cost.Zu = 0e0 * np.ones((nh, ))
+        # nh = 2
+        # ocp.constraints.idxsh = np.arange(2)
+        # ocp.constraints.lh = np.zeros((nh, ))
+        # ocp.constraints.uh = np.zeros((nh, ))
+        # ocp.cost.zl = 1e0 * np.ones((nh, ))
+        # ocp.cost.zu = 1e0 * np.ones((nh, ))
+        # ocp.cost.Zl = 0e0 * np.ones((nh, ))
+        # ocp.cost.Zu = 0e0 * np.ones((nh, ))
 
-        ocp.constraints.idxsh_0 = np.arange(2)
-        ocp.constraints.lh_0 = np.zeros((nh, ))
-        ocp.constraints.uh_0 = np.zeros((nh, ))
-        ocp.cost.zl_0 = 1e0 * np.ones((nh, ))
-        ocp.cost.zu_0 = 1e0 * np.ones((nh, ))
-        ocp.cost.Zl_0 = 0e0 * np.ones((nh, ))
-        ocp.cost.Zu_0 = 0e0 * np.ones((nh, ))
+        # ocp.constraints.idxsh_0 = np.arange(2)
+        # ocp.constraints.lh_0 = np.zeros((nh, ))
+        # ocp.constraints.uh_0 = np.zeros((nh, ))
+        # ocp.cost.zl_0 = 1e0 * np.ones((nh, ))
+        # ocp.cost.zu_0 = 1e0 * np.ones((nh, ))
+        # ocp.cost.Zl_0 = 0e0 * np.ones((nh, ))
+        # ocp.cost.Zu_0 = 0e0 * np.ones((nh, ))
 
         ocp.constraints.x0 = np.zeros(nx)
+
+        if self.opts.ellipse_centers is not None:
+            ocp = self._add_region_constraints_to_ocp(ocp)
 
         # set options
         self.set_solver_options_in_ocp(ocp, options)
 
         return ocp
+    
+    def _add_region_constraints_to_ocp(self, ocp):
+
+        # Extract x1, x2 from state
+        x1 = ocp.model.x[0]
+        x2 = ocp.model.x[1]
+
+        # Determine how many ellipses there are
+        num_ellipses = self.opts.ellipse_centers.shape[0]
+
+        # Build expressions for each ellipse
+        h_expr_list = []
+        for i in range(num_ellipses):
+            x1_center, x2_center = self.opts.ellipse_centers[i, :]
+            a_half_axis, b_half_axis = self.opts.ellipse_half_axes[i, :]
+            h_expr_ellipse = ((x1 - x1_center) / a_half_axis) ** 2 + ((x2 - x2_center) / b_half_axis) ** 2 - 1
+            h_expr_list.append(h_expr_ellipse)
+
+        # If there are no ellipses, just return
+        if len(h_expr_list) == 0:
+            return ocp
+
+        # Vertcat all ellipse constraints into a single expression
+        h_expr_ellipsoids = ca.vertcat(*h_expr_list)
+
+        # Save how many constraints existed before adding these
+        old_nh = ocp.dims.nh
+
+        # Stack these new constraints with the existing ocp.model.con_h_expr
+        if ocp.model.con_h_expr is not None:
+            h_expr_full = ca.vertcat(ocp.model.con_h_expr, h_expr_ellipsoids)
+        else:
+            h_expr_full = h_expr_ellipsoids
+
+        ocp.model.con_h_expr = h_expr_full
+        ocp.dims.nh = old_nh + num_ellipses
+
+        # Extend the lower/upper bounds lh, uh
+        if ocp.constraints.lh is not None and ocp.constraints.uh is not None:
+            ocp.constraints.lh = np.concatenate((ocp.constraints.lh, np.zeros(num_ellipses)))
+            ocp.constraints.uh = np.concatenate((ocp.constraints.uh, np.full(num_ellipses, 1.0e15)))
+        else:
+            ocp.constraints.lh = np.zeros(ocp.dims.nh)
+            ocp.constraints.uh = np.full(ocp.dims.nh, 1.0e15)
+
+        return ocp
+
+   
+        
