@@ -44,6 +44,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
     nx0_mpc = nx
     u_opt = np.zeros(nu)
     stage_costs = []
+    solve_times = []
     
     # Initialize Ornstein-Uhlenbeck noise
     noise_state = np.zeros(nx)
@@ -52,6 +53,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         
         if step % control_step == 0:
             u_opt = mpc.solve(x_traj[step, :nx0_mpc])
+            solve_times.append(mpc.acados_ocp_solver.get_stats('time_tot')) 
         
         u_traj[step] = u_opt
 
@@ -73,4 +75,47 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         # Retrieve next state with correlated noise
         x_traj[step + 1] = sim_solver.get("x") + noise_state
     
-    return x_traj, u_traj, stage_costs
+    return x_traj, u_traj, stage_costs, solve_times
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import bisect
+
+def compute_exponential_step_sizes(dt_initial, T_total, N_steps, plot=False):
+    """
+    Compute exponentially increasing step sizes such that their sum equals T_total.
+
+    Args:
+        dt_initial (float): Initial step size (e.g. 0.002).
+        T_total (float): Total time horizon (e.g. 20.0).
+        N_steps (int): Number of steps (e.g. 100).
+        plot (bool): Whether to plot the step sizes (default: False).
+
+    Returns:
+        np.ndarray: Array of step sizes of length N_steps.
+    """
+
+    # Function to find r: the common ratio of the geometric series
+    def geometric_sum_error(r):
+        if np.isclose(r, 1.0):
+            return dt_initial * N_steps - T_total
+        return dt_initial * (1 - r**N_steps) / (1 - r) - T_total
+
+    # Find r using root-finding
+    r = bisect(geometric_sum_error, 0.9, 5.0)
+
+    # Generate step sizes
+    step_sizes = np.array([dt_initial * r**i for i in range(N_steps)])
+
+    # Optional plot
+    if plot:
+        plt.figure(figsize=(8, 4))
+        plt.plot(range(N_steps), step_sizes, marker='o')
+        plt.xlabel("Step Index")
+        plt.ylabel("Step Size")
+        plt.title("Exponential Step Size Growth")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    return step_sizes

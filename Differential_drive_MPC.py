@@ -22,7 +22,7 @@ class DifferentialDriveMPCOptions:
     T_max: float = 20.
     omega_max: float = .5
     N: int = 20
-    integrator_type = "IRK"
+    integrator_type = "IRK"##"ERK"#"IRK"
     step_sizes: List[float] = field(default_factory=lambda: [0.01]*20)  # Fix: Use default_factory
     switch_stage: int = 21
     Q_mat_full = 2 * np.diag([1e4, 1e4, 1e-4, 5e3, 1e-3, 5e-1, 5e-1])
@@ -121,7 +121,7 @@ class DifferentialDriveMPC:
 
         # Pick a step size for simulation (same as the first step size)
         sim.solver_options.T = self.opts.step_sizes[0]
-        sim.solver_options.integrator_type = self.opts.integrator_type
+        sim.solver_options.integrator_type = "IRK"#self.opts.integrator_type
 
         sim_solver_5d = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
         return sim_solver_7d, sim_solver_5d
@@ -307,11 +307,11 @@ class DifferentialDriveMPC:
         ocp.set_phase(ocp_1, 2)
         ocp.solver_options = ocp_0.solver_options
         ocp.solver_options.tf = sum(options.step_sizes) + 1
-        step_sizes_list_with_transition = self.opts.step_sizes[:self.opts.switch_stage] + [1.0] + self.opts.step_sizes[self.opts.switch_stage:]
+        step_sizes_list_with_transition = list(self.opts.step_sizes[:self.opts.switch_stage]) + [1.0] + list(self.opts.step_sizes[self.opts.switch_stage:])
         ocp.solver_options.time_steps = np.array(step_sizes_list_with_transition)
 
         ocp.mocp_opts.cost_discretization = [options.cost_discretization, "EULER", options.cost_discretization]
-        ocp.mocp_opts.integrator_type = [options.integrator_type, "DISCRETE", options.integrator_type]
+        ocp.mocp_opts.integrator_type = [options.integrator_type, "DISCRETE", "ERK"]
         return ocp
 
 

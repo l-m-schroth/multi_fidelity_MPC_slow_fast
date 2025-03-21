@@ -31,13 +31,15 @@ def plot_diff_drive_trajectory(y_ref, mpc=None, closed_loop_traj=None, open_loop
     
     # Plot open-loop trajectory if provided
     if open_loop_plan is not None:
-        x_open, y_open = open_loop_plan[:, 0], open_loop_plan[:, 1]
+        x_open = np.array([arr.squeeze()[0] for arr in open_loop_plan])
+        y_open = np.array([arr.squeeze()[1] for arr in open_loop_plan])
+
         plt.plot(x_open, y_open, 'b--', label="Open Loop Plan", linewidth=2)
         
         # Add arrows for orientation if plot_errors is True
         if plot_errors:
             for i in range(0, len(x_open), max(1, len(x_open) // 10)):
-                theta = open_loop_plan[i, 3]  # Assuming theta is stored at index 3
+                theta = open_loop_plan[i][3]  # Assuming theta is stored at index 3
                 dx, dy = np.cos(theta) * 0.1, np.sin(theta) * 0.1
                 plt.arrow(x_open[i], y_open[i], dx, dy, head_width=0.05, color='b')
     
