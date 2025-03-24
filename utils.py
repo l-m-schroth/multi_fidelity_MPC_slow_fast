@@ -1,7 +1,8 @@
 import numpy as np
+from plotting_utils import plot_phase_space
 
 def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0, 
-                         sim_solver=None, control_step=1):
+                         sim_solver=None, control_step=1, plot_open_loop_plan=False):
     """
     Simulate a closed-loop system with zero-order hold (ZOH) control updates, supporting noise with adjustable frequency.
     
@@ -44,6 +45,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
     nx0_mpc = 2 if mpc.opts.switch_stage == 0 else 3 
     u_opt = np.zeros(nu)
     stage_costs = []
+    solve_times = []
     
     # Initialize Ornstein-Uhlenbeck noise
     noise_state = np.zeros(nx)
@@ -53,10 +55,15 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         
         if step % control_step == 0:
             u_opt = mpc.solve(x_traj[step, :nx0_mpc], t)
+            solve_times.append(mpc.acados_ocp_solver.get_stats('time_tot')) 
+            if plot_open_loop_plan and step % 100*control_step == 0:
+               plot_phase_space(mpc.Phi_t, mpc, open_loop_plan=True)
         
         u_traj[step] = u_opt
         
-        stage_cost = x_traj[step][:2].T @ mpc.opts.Q_2d @ x_traj[step][:2] + u_opt.T @ mpc.opts.R_2d @ u_opt
+        x1_ref, x2_ref = mpc.Phi_t(t=t)
+        x_ref = np.vstack((x1_ref, x2_ref)).squeeze()#
+        stage_cost = (x_traj[step][:2] - x_ref).T @ mpc.opts.Q_2d @ (x_traj[step][:2] - x_ref) + u_opt.T @ mpc.opts.R_2d @ u_opt
         stage_costs.append(stage_cost)
         
         # Simulate one step using Acados Sim Solver
@@ -70,4 +77,4 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         # Retrieve next state with correlated noise
         x_traj[step + 1] = sim_solver.get("x") + noise_state
     
-    return x_traj, u_traj, stage_costs
+    return x_traj, u_traj, stage_costs, solve_times

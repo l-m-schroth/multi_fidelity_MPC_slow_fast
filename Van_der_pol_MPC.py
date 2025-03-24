@@ -23,6 +23,7 @@ class VanDerPolMPCOptions:
     switch_stage: int = 20
     nlp_solver_type: str = "SQP"
     qp_solver: str = "PARTIAL_CONDENSING_HPIPM"
+    integrator_type: str = "IRK"
 
     # Cost Weights
     Q_2d: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))
@@ -35,7 +36,7 @@ class VanDerPolMPCOptions:
    
 class VanDerPolMPC:
 
-    def __init__(self, options: VanDerPolMPCOptions, Phi_t):
+    def __init__(self, options: VanDerPolMPCOptions, Phi_t, create_sim=True):
         """
         Initializes the MPC problem using the provided options.
         """
@@ -68,7 +69,8 @@ class VanDerPolMPC:
         #     self.remove_constraints_from_first_stage()
 
         # Create Acados Simulation Solver (for closed-loop simulation)
-        self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
+        if create_sim:
+            self.acados_sim_solver_3d = self._create_sim_3d(json_file_suffix="vdp_3d_sim")
 
 
     def _create_multiphase_ocp(self):
@@ -97,14 +99,14 @@ class VanDerPolMPC:
         mp_ocp.set_phase(ocp_phase_2, 2)
 
         # Assign time steps
-        step_sizes_list_with_transition = self.opts.step_size_list[:self.opts.switch_stage] + [1.0] + self.opts.step_size_list[self.opts.switch_stage:]
+        step_sizes_list_with_transition = list(self.opts.step_size_list[:self.opts.switch_stage]) + [1.0] + list(self.opts.step_size_list[self.opts.switch_stage:])
         mp_ocp.solver_options.time_steps = np.array(step_sizes_list_with_transition)
         mp_ocp.solver_options.tf = sum(step_sizes_list_with_transition)
         
         # Set solver options
         mp_ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
         mp_ocp.solver_options.qp_solver = self.opts.qp_solver
-        mp_ocp.mocp_opts.integrator_type = ['ERK', 'DISCRETE', 'ERK']
+        mp_ocp.mocp_opts.integrator_type = [self.opts.integrator_type, 'DISCRETE', 'ERK']
 
         self.total_ocp = mp_ocp
 
@@ -123,8 +125,10 @@ class VanDerPolMPC:
         # Set solver options
         ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
         ocp.solver_options.qp_solver = self.opts.qp_solver
-        ocp.solver_options.integrator_type = 'ERK'
+        ocp.solver_options.integrator_type = self.opts.integrator_type
         ocp.solver_options.N_horizon = self.opts.N
+        #ocp.solver_options.nlp_solver_warm_start_first_qp = False
+
 
         self.total_ocp = ocp
     
@@ -172,13 +176,13 @@ class VanDerPolMPC:
             ocp = self._add_region_constraints_to_ocp(ocp)
 
         # box constraints for u, necessary to prevent jittering
-        # u_min = np.array([-100.0, -100.0])  # Example: Min control limits
-        # u_max = np.array([100.0, 100.0])    # Example: Max control limits
+        u_min = np.array([-10.0, -10.0])  # Example: Min control limits
+        u_max = np.array([10.0, 10.0])    # Example: Max control limits
 
-        # # Apply box constraints on control inputs
-        # ocp.constraints.lbu = u_min
-        # ocp.constraints.ubu = u_max
-        # ocp.constraints.idxbu = np.array([0, 1])  # Apply to both control inputs
+        # Apply box constraints on control inputs
+        ocp.constraints.lbu = u_min
+        ocp.constraints.ubu = u_max
+        ocp.constraints.idxbu = np.array([0, 1])  # Apply to both control inputs
 
         return ocp
 
@@ -239,6 +243,7 @@ class VanDerPolMPC:
         x2 = ca.SX.sym("x2")
         x3 = ca.SX.sym("x3")
         x = ca.vertcat(x1, x2, x3)
+        xdot = ca.SX.sym("xdot", 3)
 
         u1 = ca.SX.sym("u1")  
         u2 = ca.SX.sym("u2")  
@@ -249,14 +254,15 @@ class VanDerPolMPC:
         dx2 = self.opts.mu * (1 - x1**2) * x2 - x1 + self.opts.epsilon_2 * x2 + self.opts.epsilon_3 * x3 + self.opts.d2 * u2
         dx3 = - (1.0 / self.opts.epsilon_4) * x3 + self.opts.d3 * u2
 
-        xdot = ca.vertcat(dx1, dx2, dx3)
+        f_expl = ca.vertcat(dx1, dx2, dx3)
 
         model = AcadosModel()
         model.name = f"vdp_3d_{self.timestamp}"
         model.x = x
+        model.xdot = xdot
         model.u = u
-        model.f_expl_expr = xdot
-        model.f_impl_expr = xdot - ca.vertcat(x1, x2, x3)  # Implicit form
+        model.f_expl_expr = f_expl
+        model.f_impl_expr = xdot - f_expl  # Implicit form
 
         return model
 
@@ -272,6 +278,7 @@ class VanDerPolMPC:
         x1 = ca.SX.sym("x1")
         x2 = ca.SX.sym("x2")
         x = ca.vertcat(x1, x2)
+        xdot = ca.SX.sym("xdot", 2)
 
         u1 = ca.SX.sym("u1")  
         u2 = ca.SX.sym("u2")  
@@ -280,14 +287,15 @@ class VanDerPolMPC:
         dx1 = x2 + self.opts.d1 * u1
         dx2 = self.opts.mu * (1 - x1**2) * x2 - x1 + self.opts.epsilon_2 * x2 + self.opts.d2 * u2
 
-        xdot = ca.vertcat(dx1, dx2)
+        f_expl = ca.vertcat(dx1, dx2)
 
         model = AcadosModel()
         model.name = f"vdp_2d_{self.timestamp}"
         model.x = x
+        model.xdot = xdot
         model.u = u
-        model.f_expl_expr = xdot
-        model.f_impl_expr = xdot - ca.vertcat(x1, x2)
+        model.f_expl_expr = f_expl
+        model.f_impl_expr = xdot - f_expl
 
         return model
     
@@ -305,9 +313,9 @@ class VanDerPolMPC:
         ocp = AcadosOcp()
         ocp.model = self._create_transition_model() 
         ocp.cost.cost_type = 'NONLINEAR_LS'
-        ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[0], ocp.model.x[1])
-        ocp.cost.W = np.diag([0.0, 0.0])
-        ocp.cost.yref = np.array([0., 0.]) # the reference values are overwritten later
+        ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[2])
+        ocp.cost.W = np.diag([20.0])
+        ocp.cost.yref = np.array([0.]) # the reference values are overwritten later
         # Apply Circular Constraints if Provided
         if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
             ocp = self._add_region_constraints_to_ocp(ocp)
@@ -323,7 +331,7 @@ class VanDerPolMPC:
 
         # Pick a step size for simulation (same as the first step size)
         sim.solver_options.T = self.opts.step_size_list[0]
-        sim.solver_options.integrator_type = "ERK"
+        sim.solver_options.integrator_type = self.opts.integrator_type
         
         sim_solver = AcadosSimSolver(sim, json_file=f"acados_sim_solver_{json_file_suffix}.json")
         return sim_solver
@@ -343,7 +351,7 @@ class VanDerPolMPC:
         offset = 0
         for stage in range(N):
             if stage is not 0 and stage == self.opts.switch_stage: # 0 stage means only 2d model and no switch
-                offset += 1 # no penalty for switching stage, no reference update
+                offset += 1 # no reference update for witching stage, penalize large x3
             x1_ref, x2_ref = self.Phi_t(t_eval)  # Get reference at time t_eval
             y_ref = np.array([x1_ref, x2_ref, 0.0, 0.0])
             self.acados_ocp_solver.set(stage + offset, "yref", y_ref)
