@@ -29,7 +29,7 @@ class DroneMPCOptions:
 
     # Solver / integrator settings
     nlp_solver_type: str = "SQP"
-    qp_solver: str = "PARTIAL_CONDENSING_OSQP" # "PARTIAL_CONDENSING_HPIPM" HPIPM seems to have convergence issues
+    qp_solver: str = "PARTIAL_CONDENSING_HPIPM" # "PARTIAL_CONDENSING_OSQP" 
     integrator_type: str = "IRK"
 
     # Physical parameters
@@ -50,11 +50,11 @@ class DroneMPCOptions:
     #  - For full-pendulum phases (4D cost: [y, z, y_load_dd, z_load_dd]):
     #       W = blockdiag(Q, Q_acc_load)
     #  - For transition (2D cost: [y_load_dd, z_load_dd]), we also use Q_acc_load
-    Q: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))        # on [y, z]
-    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.05, 0.05]))      # on [y_dd, z_dd]
-    Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([0.05, 0.05])) # on [y_load_dd, z_load_dd]
-    R_reg: np.ndarray = field(default_factory=lambda: np.diag([1e-4, 1e-4])) # very small penalty on inputs for regularization
-    R_reg_approx: np.ndarray = field(default_factory=lambda: np.diag([1e-4, 1e-4])) # very small penalty on inputs for regularization
+    Q: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))        # on [y, z]
+    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.1, 0.1]))      # on [y_dd, z_dd]
+    Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([0.1, 0.1])) # on [y_load_dd, z_load_dd]
+    R_reg: np.ndarray = field(default_factory=lambda: np.diag([1e-3, 1e-3])) # very small penalty on inputs for regularization
+    R_reg_approx: np.ndarray = field(default_factory=lambda: np.diag([1e-3, 1e-3])) # very small penalty on inputs for regularization
 
     # Constraints
     #  - Actuator model: states are [w1,w2], inputs are [dw1,dw2]
@@ -457,6 +457,7 @@ class DroneMPC:
         ocp_2.constraints.lbu = np.array([self.opts.F_min, self.opts.F_min])
 
         self._set_ocp_solver_options(ocp_2)
+        # overwrite levenberg-marquardt, problem is not as badly conditioned anymore
 
         # Combine phases
         mp_ocp.set_phase(ocp_0, 0)
@@ -767,9 +768,13 @@ class DroneMPC:
         ocp.solver_options.integrator_type = self.opts.integrator_type
         ocp.solver_options.nlp_solver_max_iter = 200
         ocp.solver_options.tol = 1e-6
-        ocp.solver_options.qp_tol = 1e-3
+        ocp.solver_options.qp_tol = 1e-2*ocp.solver_options.tol
         ocp.solver_options.print_level = 1
         ocp.solver_options.qp_solver_iter_max = 500
+        ocp.solver_options.hessian_approx = "EXACT"#"GAUSS_NEWTON"
+        ocp.solver_options.globalization = "MERIT_BACKTRACKING"
+        ocp.solver_options.levenberg_marquardt = 6e-3 # regularize Hessian stongly due to conditioning
+        ocp.solver_options.hpipm_mode = "ROBUST" # problem seems a bit ill conditioned, try robust mode
         # ocp.solver_options.tf or time_steps must be set outside as appropriate.
 
     ###########################################################################
