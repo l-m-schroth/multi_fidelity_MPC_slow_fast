@@ -24,25 +24,25 @@ class DroneMPCOptions:
     """
     # Horizon & discretization
     N: int = 20
-    switch_stage: int = 0
+    switch_stage: int = 20
     step_sizes: List[float] = field(default_factory=lambda: [0.01]*20)
 
     # Solver / integrator settings
     nlp_solver_type: str = "SQP"
-    qp_solver: str = "PARTIAL_CONDENSING_HPIPM"
+    qp_solver: str = "PARTIAL_CONDENSING_OSQP" # "PARTIAL_CONDENSING_HPIPM" HPIPM seems to have convergence issues
     integrator_type: str = "IRK"
 
     # Physical parameters
-    M: float = 1.0       # drone mass
-    m: float = 0.5       # load mass
-    Ixx: float = 0.1
-    g: float = 9.81
-    c: float = 1.0       # rotor thrust constant
-    L_rot: float = 0.2   # half distance between rotors
+    M: float = 2.0       # drone mass in kg
+    m: float = 0.1       # load mass in kg (small compared to drone mass)
+    Ixx: float = 0.05    # moment of inertia (kg·m²)
+    g: float = 9.81      # gravitational acceleration (m/s²)
+    c: float = 1.0       # rotor thrust constant (N per unit input)
+    L_rot: float = 0.2   # half distance between rotors in m
 
     # Pendulum parameters (used only if pendulum is active)
-    k: float  = 10.0     # spring stiffness
-    l0: float = 0.5      # spring rest length
+    k: float = 100.0     # spring stiffness (N/m)
+    l0: float = 0.2      # spring rest length in m
 
     # Cost weighting matrices
     #  - For ignoring-pendulum & direct-thrust phases (4D cost: [y, z, y_dd, z_dd]):
@@ -50,20 +50,22 @@ class DroneMPCOptions:
     #  - For full-pendulum phases (4D cost: [y, z, y_load_dd, z_load_dd]):
     #       W = blockdiag(Q, Q_acc_load)
     #  - For transition (2D cost: [y_load_dd, z_load_dd]), we also use Q_acc_load
-    Q: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))       # on [y, z]
-    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))     # on [y_dd, z_dd]
-    Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([5.0, 5.0]))# on [y_load_dd, z_load_dd]
+    Q: np.ndarray = field(default_factory=lambda: np.diag([10.0, 10.0]))        # on [y, z]
+    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.05, 0.05]))      # on [y_dd, z_dd]
+    Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([0.05, 0.05])) # on [y_load_dd, z_load_dd]
+    R_reg: np.ndarray = field(default_factory=lambda: np.diag([1e-4, 1e-4])) # very small penalty on inputs for regularization
+    R_reg_approx: np.ndarray = field(default_factory=lambda: np.diag([1e-4, 1e-4])) # very small penalty on inputs for regularization
 
     # Constraints
     #  - Actuator model: states are [w1,w2], inputs are [dw1,dw2]
     #  - Direct thrust: inputs are [F1,F2]
-    w_min: float = 0.0
+    w_min: float = -10.0
     w_max: float = 10.0
     w_dot_min: float = -5.0
     w_dot_max: float = 5.0
     phi_min: float = -0.7
     phi_max: float = 0.7
-    F_min: float = 0.0
+    F_min: float = -15.0
     F_max: float = 15.0
 
     # Whether to create a sim solver for the full model
@@ -86,10 +88,10 @@ class DroneMPC:
         # Build the appropriate OCP based on switch_stage
         if self.opts.switch_stage == 0:
             # Single-phase, ignoring pendulum (but with actuator model).
-            self._create_single_phase_mpc_ignore_pendulum()
+            self._create_single_phase_ocp_ignore_pendulum()
         elif self.opts.switch_stage >= self.opts.N:
             # Single-phase, full pendulum + actuator
-            self._create_single_phase_mpc_full_pendulum()
+            self._create_single_phase_ocp_full_pendulum()
         else:
             # Multi-phase OCP
             self.multi_phase = True
@@ -114,6 +116,10 @@ class DroneMPC:
         - If a reference is given, set it for all stages in the cost.
         - Solve the OCP and return the first control input.
         """
+
+        if self.opts.switch_stage == 0:
+            x0= self.to_8d(x0)
+
         # Phase 0 (index 0) gets x0 constraints
         self.acados_ocp_solver.set(0, "lbx", x0)
         self.acados_ocp_solver.set(0, "ubx", x0)
@@ -149,13 +155,67 @@ class DroneMPC:
         x_end = self.acados_ocp_solver.get(N_total, "x")
         traj_x.append(x_end)
         return traj_x, traj_u
+    
+    def set_initial_guess(self, x0_full: np.ndarray, u_guess: np.ndarray):
+        # Single-phase cases:
+        if not self.multi_phase:
+            # We have a horizon of N steps => N shooting intervals, so N+1 states
+            N_horizon = self.opts.N
+            if self.opts.switch_stage == 0:
+                x0 = self.to_8d(x0_full)
+            else:
+                x0 = x0_full   
+            for stage in range(N_horizon):
+                self.acados_ocp_solver.set(stage, "x", x0)
+                self.acados_ocp_solver.set(stage, "u", u_guess)
+            self.acados_ocp_solver.set(N_horizon, "x", x0)
+        else:
+            N0 = self.opts.switch_stage       # horizon for phase 0
+            N2 = self.opts.N - N0             # horizon for phase 2
+            for stage in range(N0):
+                self.acados_ocp_solver.set(stage, "x", x0_full)
+                self.acados_ocp_solver.set(stage, "u", u_guess)
+
+            # The discrete transition at stage N0: no input
+            self.acados_ocp_solver.set(N0, "x", x0_full)
+
+            x0_simpl = self.to_6d(x0_full)  # or to_8d if needed
+            for stage in range(N0 + 1, N0 + 1 + N2):
+                self.acados_ocp_solver.set(stage, "x", x0_simpl)
+                self.acados_ocp_solver.set(stage, "u", u_guess)
+            # terminal node
+            self.acados_ocp_solver.set(N0 + 1 + N2, "x", x0_simpl)
+
+    def to_8d(self, x_full):
+        """Ignore pendulum + actuator => 8D."""
+        return np.array([
+            x_full[0],   # y
+            x_full[1],   # z
+            x_full[2],   # phi
+            x_full[5],   # y_dot
+            x_full[6],   # z_dot
+            x_full[7],   # phi_dot
+            x_full[10],  # w1
+            x_full[11],  # w2
+        ])
+
+    def to_6d(self, x_full):
+        """Direct-thrust => 6D."""
+        return np.array([
+            x_full[0],  # y
+            x_full[1],  # z
+            x_full[2],  # phi
+            x_full[5],  # y_dot
+            x_full[6],  # z_dot
+            x_full[7],  # phi_dot
+        ])
 
 
     ###########################################################################
     # Single-Phase OCPs
     ###########################################################################
 
-    def _create_single_phase_mpc_ignore_pendulum(self):
+    def _create_single_phase_ocp_ignore_pendulum(self):
         """
         Single-phase ignoring pendulum, but with actuator model.
         State: x = [y, z, phi, y_dot, z_dot, phi_dot, w1, w2]
@@ -183,14 +243,19 @@ class DroneMPC:
         ocp.cost.cost_type_e = "NONLINEAR_LS"
 
         # Stage weighting
+        # W_stage = np.block([
+        #     [self.opts.Q,           np.zeros((2,2))],
+        #     [np.zeros((2,2)),       self.opts.Q_acc]
+        # ])
         W_stage = np.block([
-            [self.opts.Q,           np.zeros((2,2))],
-            [np.zeros((2,2)),       self.opts.Q_acc]
+            [self.opts.Q,             np.zeros((2, 2)),         np.zeros((2, 2))],
+            [np.zeros((2, 2)),        self.opts.Q_acc,          np.zeros((2, 2))],
+            [np.zeros((2, 2)),        np.zeros((2, 2)),          self.opts.R_reg]
         ])
         ocp.cost.W = W_stage
         ocp.cost.W_e = self.opts.Q
 
-        ocp.cost.yref = np.zeros(4)   # [y, z, y_dd, z_dd]
+        ocp.cost.yref = np.zeros(6)   # [y, z, y_dd, z_dd]
         ocp.cost.yref_e = np.zeros(2) # [y, z]
 
         # Constraints
@@ -215,7 +280,8 @@ class DroneMPC:
         self._set_ocp_solver_options(ocp)
         self.total_ocp = ocp
 
-    def _create_single_phase_mpc_full_pendulum(self):
+
+    def _create_single_phase_ocp_full_pendulum(self):
         """
         Single-phase with full pendulum + actuator model.
         State: x = 12D
@@ -239,17 +305,18 @@ class DroneMPC:
         ocp.cost.cost_type = "NONLINEAR_LS"
 
         # Terminal cost on first 2 comps => [y, z]
-        ocp.model.cost_y_expr_e = cost_expr[0:2]
+        ocp.model.cost_y_expr_e = ca.vertcat(cost_expr[0], cost_expr[1])
         ocp.cost.cost_type_e = "NONLINEAR_LS"
 
         W_stage = np.block([
-            [self.opts.Q,                np.zeros((2,2))],
-            [np.zeros((2,2)), self.opts.Q_acc_load]
+            [self.opts.Q,             np.zeros((2, 2)),         np.zeros((2, 2))],
+            [np.zeros((2, 2)),        self.opts.Q_acc_load,     np.zeros((2, 2))],
+            [np.zeros((2, 2)),        np.zeros((2, 2)),         self.opts.R_reg]
         ])
         ocp.cost.W = W_stage
         ocp.cost.W_e = self.opts.Q
 
-        ocp.cost.yref = np.zeros(4)
+        ocp.cost.yref = np.zeros(6)
         ocp.cost.yref_e = np.zeros(2)
 
         # Constraints
@@ -296,7 +363,6 @@ class DroneMPC:
         ocp_0 = AcadosOcp()
         model_0 = self._build_full_pendulum_model()  # 12D
         ocp_0.model = model_0
-        ocp_0.solver_options.N_horizon = N0
 
         # Nonlinear LS cost: dimension=4
         cost_expr_0 = self._cost_expr_full_pendulum(model_0)
@@ -304,13 +370,13 @@ class DroneMPC:
         ocp_0.cost.cost_type = "NONLINEAR_LS"
 
         # No terminal cost for phase 0 (we simply don't define cost_y_expr_e).
-        # (Or we set cost_type_e="NONE", but we can omit it altogether.)
         W_0 = np.block([
-            [self.opts.Q,                np.zeros((2,2))],
-            [np.zeros((2,2)), self.opts.Q_acc_load]
+            [self.opts.Q,             np.zeros((2, 2)),         np.zeros((2, 2))],
+            [np.zeros((2, 2)),        self.opts.Q_acc_load,     np.zeros((2, 2))],
+            [np.zeros((2, 2)),        np.zeros((2, 2)),         self.opts.R_reg]
         ])
         ocp_0.cost.W = W_0
-        ocp_0.cost.yref = np.zeros(4)
+        ocp_0.cost.yref = np.zeros(6)
 
         nx_0 = model_0.x.size()[0]
         ocp_0.constraints.x0 = np.zeros(nx_0)  # initial state only in phase 0
@@ -334,23 +400,18 @@ class DroneMPC:
         ocp_1 = AcadosOcp()
         transition_model = self._build_transition_model()  # input is 12D
         ocp_1.model = transition_model
-        ocp_1.solver_options.N_horizon = 1
 
         # Reuse the load acceleration expressions from model_0.
         # We stored them as a CasADi Function in model_0.load_acc_func(...).
         # So cost_y_expr = model_0.load_acc_func( x_in ), where x_in is 12D.
         # But we can't store that expression directly in transition_model itself,
         # so we do it after we create the OCP:
-        load_acc_expr = model_0.load_acc_func(transition_model.x)
-
-        ocp_1.model.cost_y_expr = load_acc_expr
+        # load_acc_expr = model_0.load_acc_func(transition_model.x)
+        nx_tran = transition_model.x.shape[0]
+        ocp_1.model.cost_y_expr = transition_model.x #load_acc_expr
         ocp_1.cost.cost_type = "NONLINEAR_LS"
-        ocp_1.cost.W = self.opts.Q_acc_load
-        ocp_1.cost.yref = np.zeros(2)  # dimension=2 => [y_load_dd, z_load_dd]
-
-        # We do not define cost_y_expr_e => no terminal cost
-        # nor x0 constraints in phase 1
-        ocp_1.constraints.x0 = np.zeros(transition_model.x.size()[0])  # dummy
+        ocp_1.cost.W = np.zeros((nx_tran, nx_tran))
+        ocp_1.cost.yref = np.zeros(nx_tran) # dimension=2 => [y_load_dd, z_load_dd]
 
         self._set_ocp_solver_options(ocp_1)
 
@@ -358,23 +419,27 @@ class DroneMPC:
         ocp_2 = AcadosOcp()
         model_2 = self._build_drone_direct_thrust_model(M_eff=self.opts.M + self.opts.m)
         ocp_2.model = model_2
-        ocp_2.solver_options.N_horizon = N2
 
         cost_expr_2 = self._cost_expr_direct_thrust(model_2)  # dimension=4
         ocp_2.model.cost_y_expr = cost_expr_2
         ocp_2.cost.cost_type = "NONLINEAR_LS"
 
         # Terminal cost on first 2 comps => [y, z]
-        ocp_2.model.cost_y_expr_e = cost_expr_2[0:2]
+        ocp_2.model.cost_y_expr_e = ca.vertcat(cost_expr_2[0], cost_expr_2[1])
         ocp_2.cost.cost_type_e = "NONLINEAR_LS"
 
+        # W_2 = np.block([
+        #     [self.opts.Q,       np.zeros((2,2))],
+        #     [np.zeros((2,2)),   self.opts.Q_acc]
+        # ])
         W_2 = np.block([
-            [self.opts.Q,       np.zeros((2,2))],
-            [np.zeros((2,2)),   self.opts.Q_acc]
+            [self.opts.Q,             np.zeros((2, 2)),         np.zeros((2, 2))],
+            [np.zeros((2, 2)),        self.opts.Q_acc,     np.zeros((2, 2))],
+            [np.zeros((2, 2)),        np.zeros((2, 2)),         self.opts.R_reg_approx]
         ])
         ocp_2.cost.W = W_2
         ocp_2.cost.W_e = self.opts.Q
-        ocp_2.cost.yref = np.zeros(4)
+        ocp_2.cost.yref = np.zeros(6)
         ocp_2.cost.yref_e = np.zeros(2)
 
         # no x0 for phase 2
@@ -398,6 +463,9 @@ class DroneMPC:
         mp_ocp.set_phase(ocp_1, 1)
         mp_ocp.set_phase(ocp_2, 2)
 
+        self._set_ocp_solver_options(mp_ocp)
+
+        # Overwrite some solver options that need to change for multi phase problems
         # Time steps (including discrete transition)
         step_sizes_list = list(self.opts.step_sizes[:N0]) + [1.0] + list(self.opts.step_sizes[N0:])
         mp_ocp.solver_options.time_steps = np.array(step_sizes_list)
@@ -410,44 +478,32 @@ class DroneMPC:
             "ERK",                      # phase 2: direct thrust
         ]
 
-        # The usual solver options
-        mp_ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
-        mp_ocp.solver_options.qp_solver = self.opts.qp_solver
-
         self.total_ocp = mp_ocp
 
 
     ###########################################################################
-    # Setting References (Like in vdp Class)
+    # Setting References 
     ###########################################################################
 
-    def _set_reference_in_cost(self, y_ref: np.ndarray):
+    def _set_reference_in_cost(self, pos_ref: np.ndarray):
         """
         Similar to how references are handled in vdp. We assume y_ref = [y_target, z_target].
         We'll set [y_ref, z_ref, 0, 0] for 4D costs, and [y_ref, z_ref] for 2D costs.
         """
-        N_total = self.opts.N
-        if self.multi_phase:
-            N_total += 1
+        N = self.opts.N
+        y_ref, z_ref = pos_ref[0], pos_ref[1]
 
         # For each shooting node: set a suitable yref dimension
-        for stage in range(N_total + 1):
-            try:
-                current_yref = self.acados_ocp_solver.get(stage, "yref")
-                cost_dim = current_yref.shape[0]
-                if cost_dim == 4:
-                    # [y, z, something, something]
-                    updated_yref = np.array([y_ref[0], y_ref[1], 0.0, 0.0])
-                elif cost_dim == 2:
-                    updated_yref = np.array([y_ref[0], y_ref[1]])
-                else:
-                    # If some phase doesn't define cost or has dimension mismatch, skip.
-                    continue
-
-                self.acados_ocp_solver.set(stage, "yref", updated_yref)
-            except:
-                pass
-
+        offset = 0
+        for stage in range(N):
+            if stage != 0 and stage == self.opts.switch_stage: # 0 stage means only 2d model and no switch
+                offset += 1 # no reference update for witching stage, penalize large x3
+                continue
+            y_ref_acados = np.array([y_ref, z_ref, 0.0, 0.0, 0.0, 0.0])
+            self.acados_ocp_solver.set(stage + offset, "yref", y_ref_acados)     
+        y_ref_N_acados = np.array([y_ref, z_ref])
+        self.acados_ocp_solver.set(N+offset, "yref", y_ref_N_acados)
+            
 
     ###########################################################################
     # Model-Building Routines
@@ -481,7 +537,7 @@ class DroneMPC:
         T = (w1 + w2)*c_
         y_dd = -T*ca.sin(phi)/M_eff
         z_dd = (T*ca.cos(phi) - M_eff*g_)/M_eff
-        phi_dd = (L_*c_ / I_)*(w1 - w2)
+        phi_dd = (L_*c_ / I_)*(-w1 + w2)
 
         xdot = ca.vertcat(
             y_dot,
@@ -569,10 +625,10 @@ class DroneMPC:
 
         # Store as a Function => model.load_acc_func( x_12 ) => [y_load_dd, z_load_dd]
         # We'll need this for the transition cost.
-        model.load_acc_func = ca.Function(
+        self.load_acc_func = ca.Function(
             "load_acc_func",
-            [model.x], [y_load_ddot, z_load_ddot],
-            ["x_in"], ["y_load_dd", "z_load_dd"]
+            [model.x, model.u], [y_load_ddot, z_load_ddot],
+            ["x_in", "u_in"], ["y_load_dd", "z_load_dd"]
         )
 
         return model
@@ -620,7 +676,7 @@ class DroneMPC:
         T = F1 + F2
         y_dd = -T * ca.sin(phi)/M_eff
         z_dd = (T * ca.cos(phi) - M_eff*g_)/M_eff
-        phi_dd = (L_ / I_)*(F1 - F2)
+        phi_dd = (L_ / I_)*(-F1 + F2)
 
         xdot = ca.vertcat(
             y_dot,
@@ -658,25 +714,30 @@ class DroneMPC:
         z_expr = model.x[1]
         y_dd_expr = xdot_expr[3]
         z_dd_expr = xdot_expr[4]
-        cost_expr = ca.vertcat(y_expr, z_expr, y_dd_expr, z_dd_expr)
+        u_1 = model.u[0]
+        u_2 = model.u[1]
+        cost_expr = ca.vertcat(y_expr, z_expr, y_dd_expr, z_dd_expr, u_1, u_2)
         return cost_expr
 
     def _cost_expr_full_pendulum(self, model: AcadosModel) -> ca.SX:
         """
         cost_y_expr = [ y, z, y_load_dd, z_load_dd ]
-        We'll reuse the symbolic function that we stored in 'model.load_acc_func':
-           [y_load_dd, z_load_dd] = model.load_acc_func(x).
+        We'll reuse the symbolic function that we stored in 'self.load_acc_func':
+           [y_load_dd, z_load_dd] = self.load_acc_func(x).
         """
         x_sym = model.x
         y_drone = x_sym[0]
         z_drone = x_sym[1]
 
         # compute [y_load_ddot, z_load_ddot] using the stored function
-        load_acc = model.load_acc_func(x_sym)  # => [y_load_dd, z_load_dd]
+        load_acc = self.load_acc_func(x_sym, model.u)  # => [y_load_dd, z_load_dd]
         y_load_ddot = load_acc[0]
         z_load_ddot = load_acc[1]
 
-        cost_expr = ca.vertcat(y_drone, z_drone, y_load_ddot, z_load_ddot)
+        u_1 = model.u[0]
+        u_2 = model.u[1]
+
+        cost_expr = ca.vertcat(y_drone, z_drone, y_load_ddot, z_load_ddot, u_1, u_2)
         return cost_expr
 
     def _cost_expr_direct_thrust(self, model: AcadosModel) -> ca.SX:
@@ -690,8 +751,10 @@ class DroneMPC:
         z_expr = model.x[1]
         y_dd_expr = xdot_expr[3]
         z_dd_expr = xdot_expr[4]
+        u_1 = model.u[0]
+        u_2 = model.u[1]
 
-        return ca.vertcat(y_expr, z_expr, y_dd_expr, z_dd_expr)
+        return ca.vertcat(y_expr, z_expr, y_dd_expr, z_dd_expr, u_1, u_2)
 
 
     ###########################################################################
@@ -705,6 +768,8 @@ class DroneMPC:
         ocp.solver_options.nlp_solver_max_iter = 200
         ocp.solver_options.tol = 1e-6
         ocp.solver_options.qp_tol = 1e-3
+        ocp.solver_options.print_level = 1
+        ocp.solver_options.qp_solver_iter_max = 500
         # ocp.solver_options.tf or time_steps must be set outside as appropriate.
 
     ###########################################################################

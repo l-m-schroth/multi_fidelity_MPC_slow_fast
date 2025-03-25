@@ -16,7 +16,7 @@ import sympy
 import os
 
 # determine whether to save as casadi or numpy
-casadi = False
+casadi = True
 
 ###############################################################################
 # A) Directory setup
@@ -290,7 +290,19 @@ if casadi:
         f.write("    # x = [ y, z, phi, r, theta, y_dot, z_dot, phi_dot, r_dot, theta_dot, w1, w2 ]\n")
         f.write("    # u = [u1, u2] = [dw1/dt, dw2/dt]\n")
         f.write("    # params = [M, m, Ixx, g, k, l0, c, L_rot, f_ext_dy, f_ext_dz, f_ext_my, f_ext_mz]\n\n")
-        f.write("    M, m, Ixx, g, k, l0, c, L_rot, f_ext_dy, f_ext_dz, f_ext_my, f_ext_mz = params\n\n")
+        f.write("    params_list = ca.vertsplit(params)\n")
+        f.write("    M = params_list[0]\n")
+        f.write("    m = params_list[1]\n")
+        f.write("    Ixx = params_list[2]\n")
+        f.write("    g = params_list[3]\n")
+        f.write("    k = params_list[4]\n")
+        f.write("    l0 = params_list[5]\n")
+        f.write("    c = params_list[6]\n")
+        f.write("    L_rot = params_list[7]\n")
+        f.write("    f_ext_dy = params_list[8]\n")
+        f.write("    f_ext_dz = params_list[9]\n")
+        f.write("    f_ext_my = params_list[10]\n")
+        f.write("    f_ext_mz = params_list[11]\n\n")
         f.write("    x_dot = ca.MX.zeros(12)\n\n")
         for i, rhs_str in enumerate(x_dot_str_list):
             f.write(f"    x_dot[{i}] = {rhs_str}\n")

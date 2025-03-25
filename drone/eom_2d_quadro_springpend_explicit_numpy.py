@@ -18,7 +18,7 @@ def eom_2d_quadro_springpend_explicit(x, u, params):
     x_dot[6] = (-M*g + c*x[10]*np.cos(x[2]) + c*x[11]*np.cos(x[2]) + f_ext_dz + k*l0*np.cos(x[4]) - k*x[3]*np.cos(x[4]))/M
     x_dot[7] = L_rot*c*(-x[10] + x[11])/Ixx
     x_dot[8] = f_ext_my*np.sin(x[4])/m - f_ext_mz*np.cos(x[4])/m + k*l0/m - k*x[3]/m + x[3]*x[9]**2 + c*x[10]*np.cos(x[2] - x[4])/M + c*x[11]*np.cos(x[2] - x[4])/M - f_ext_dy*np.sin(x[4])/M + f_ext_dz*np.cos(x[4])/M + k*l0/M - k*x[3]/M
-    x_dot[9] = (1.0*M*f_ext_my*np.cos(x[4]) + 1.0*M*f_ext_mz*np.sin(x[4]) - 2.0*M*m*x[8]*x[9] + 1.0*c*m*x[10]*np.sin(x[2] - x[4]) + 1.0*c*m*x[11]*np.sin(x[2] - x[4]) - 1.0*f_ext_dy*m*np.cos(x[4]) - 1.0*f_ext_dz*m*np.sin(x[4]))/(M*m*x[3] + 1e-7)
+    x_dot[9] = (1.0*M*f_ext_my*np.cos(x[4]) + 1.0*M*f_ext_mz*np.sin(x[4]) - 2.0*M*m*x[8]*x[9] + 1.0*c*m*x[10]*np.sin(x[2] - x[4]) + 1.0*c*m*x[11]*np.sin(x[2] - x[4]) - 1.0*f_ext_dy*m*np.cos(x[4]) - 1.0*f_ext_dz*m*np.sin(x[4]))/(M*m*x[3])
     x_dot[10] = u[0]
     x_dot[11] = u[1]
     return x_dot
