@@ -80,7 +80,7 @@ def simulate_closed_loop_drone(
         # MPC update every `control_step` steps
         if step % control_step == 0:
             # Solve the MPC with the current state
-            u_current = mpc.solve(x_traj[step])
+            u_current = mpc.solve(x_traj[step], target_xy)
             # For timing stats (if supported)
             solve_time = mpc.acados_ocp_solver.get_stats('time_tot')
             solve_times.append(solve_time)
