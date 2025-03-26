@@ -31,6 +31,7 @@ class DroneMPCOptions:
     nlp_solver_type: str = "SQP"
     qp_solver: str = "PARTIAL_CONDENSING_HPIPM" # "PARTIAL_CONDENSING_OSQP" 
     integrator_type: str = "IRK"
+    levenberg_marquardt = 8e-3
 
     # Physical parameters
     M: float = 2.0       # drone mass in kg
@@ -51,7 +52,7 @@ class DroneMPCOptions:
     #       W = blockdiag(Q, Q_acc_load)
     #  - For transition (2D cost: [y_load_dd, z_load_dd]), we also use Q_acc_load
     Q: np.ndarray = field(default_factory=lambda: np.diag([1.0, 1.0]))        # on [y, z]
-    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.1, 0.1]))      # on [y_dd, z_dd]
+    Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.008, 0.008]))      # on [y_dd, z_dd]
     Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([0.1, 0.1])) # on [y_load_dd, z_load_dd]
     R_reg: np.ndarray = field(default_factory=lambda: np.diag([1e-3, 1e-3])) # very small penalty on inputs for regularization
     R_reg_approx: np.ndarray = field(default_factory=lambda: np.diag([1e-3, 1e-3])) # very small penalty on inputs for regularization
@@ -319,6 +320,21 @@ class DroneMPC:
         ocp.cost.yref = np.zeros(6)
         ocp.cost.yref_e = np.zeros(2)
 
+        # store stage cost function with full model, this is used for evaluating the costs in closed loop simulation
+        yref_ca = ca.MX.sym("yref", 6)
+
+        diff = cost_expr - yref_ca
+        stage_cost_sym = diff.T @ W_stage @ diff
+
+        # 4) Create a CasADi function
+        self.stage_cost_func_full = ca.Function(
+            "stage_cost_func_full",
+            [ocp.model.x, ocp.model.u, yref_ca],
+            [stage_cost_sym],
+            ["x", "u", "y_ref"],
+            ["stage_cost"]
+        )
+
         # Constraints
         nx = model_full.x.size()[0]
         ocp.constraints.x0 = np.zeros(nx)
@@ -457,7 +473,6 @@ class DroneMPC:
         ocp_2.constraints.lbu = np.array([self.opts.F_min, self.opts.F_min])
 
         self._set_ocp_solver_options(ocp_2)
-        # overwrite levenberg-marquardt, problem is not as badly conditioned anymore
 
         # Combine phases
         mp_ocp.set_phase(ocp_0, 0)
@@ -766,14 +781,14 @@ class DroneMPC:
         ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
         ocp.solver_options.qp_solver = self.opts.qp_solver
         ocp.solver_options.integrator_type = self.opts.integrator_type
-        ocp.solver_options.nlp_solver_max_iter = 200
+        ocp.solver_options.nlp_solver_max_iter = 300
         ocp.solver_options.tol = 1e-6
         ocp.solver_options.qp_tol = 1e-2*ocp.solver_options.tol
         ocp.solver_options.print_level = 1
         ocp.solver_options.qp_solver_iter_max = 500
         ocp.solver_options.hessian_approx = "EXACT"#"GAUSS_NEWTON"
         ocp.solver_options.globalization = "MERIT_BACKTRACKING"
-        ocp.solver_options.levenberg_marquardt = 6e-3 # regularize Hessian stongly due to conditioning
+        ocp.solver_options.levenberg_marquardt = self.opts.levenberg_marquardt # regularize Hessian stongly due to conditioning
         ocp.solver_options.hpipm_mode = "ROBUST" # problem seems a bit ill conditioned, try robust mode
         # ocp.solver_options.tf or time_steps must be set outside as appropriate.
 

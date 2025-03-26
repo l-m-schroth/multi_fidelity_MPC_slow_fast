@@ -4,10 +4,12 @@ def simulate_closed_loop_drone(
     x0, 
     mpc, 
     duration, 
+    stage_cost_function,
+    target_xy,
     sigma_noise=0.0, 
     tau_noise=1.0, 
     sim_solver=None, 
-    control_step=1
+    control_step=1,
 ):
     """
     Simulate a closed-loop system for DroneMPC with zero-order hold (ZOH) control updates,
@@ -69,6 +71,10 @@ def simulate_closed_loop_drone(
     # We'll keep a "current" control guess
     u_current = np.zeros(u_dim)
 
+    # create the y_ref vector
+    y_ref_full = np.zeros(6)
+    y_ref_full[0:2] = target_xy  # set [y*, z*]
+
     # Main loop
     for step in range(num_steps):
         # MPC update every `control_step` steps
@@ -83,7 +89,7 @@ def simulate_closed_loop_drone(
         u_traj[step] = u_current
 
         # Compute the stage cost
-        cost_val = 0 #get_drone_stage_cost(x_traj[step], u_current, mpc)
+        cost_val = cost_val = float(stage_cost_function(x_traj[step], u_current, y_ref_full).full().item())
         stage_costs.append(cost_val)
 
         # Simulate one step
@@ -105,50 +111,44 @@ def simulate_closed_loop_drone(
 
     return x_traj, u_traj, stage_costs, solve_times
 
+import matplotlib.pyplot as plt
+from scipy.optimize import bisect
 
-def get_drone_stage_cost(x, u, mpc):
-    x_dim = x.shape[0]
-    u_dim = u.shape[0]
+def compute_exponential_step_sizes(dt_initial, T_total, N_steps, plot=False):
+    """
+    Compute exponentially increasing step sizes such that their sum equals T_total.
 
-    # We retrieve some options from mpc.opts
-    # Adjust the names if your DroneMPC uses different ones
-    if hasattr(mpc.opts, 'Q_mat_full'):
-        Q_full = mpc.opts.Q_mat_full
-    else:
-        # fallback
-        Q_full = np.eye(x_dim)
+    Args:
+        dt_initial (float): Initial step size (e.g. 0.002).
+        T_total (float): Total time horizon (e.g. 20.0).
+        N_steps (int): Number of steps (e.g. 100).
+        plot (bool): Whether to plot the step sizes (default: False).
 
-    if hasattr(mpc.opts, 'Q_acc'):
-        # e.g. ignoring pend => we might do x^T Q_approx x
-        Q_approx = np.eye(x_dim)  # as fallback
-    else:
-        Q_approx = np.eye(x_dim)
+    Returns:
+        np.ndarray: Array of step sizes of length N_steps.
+    """
 
-    # A small R for the input
-    if hasattr(mpc.opts, 'R_reg'):
-        R_reg = mpc.opts.R_reg
-        if R_reg.shape[0] != u_dim:
-            R_reg = np.eye(u_dim) * 1e-3
-    else:
-        R_reg = np.eye(u_dim) * 1e-3
+    # Function to find r: the common ratio of the geometric series
+    def geometric_sum_error(r):
+        if np.isclose(r, 1.0):
+            return dt_initial * N_steps - T_total
+        return dt_initial * (1 - r**N_steps) / (1 - r) - T_total
 
-    # Decide which cost:
-    if x_dim >= 12:
-        # full pendulum model => x.T Q_full x + u.T R_reg u
-        # user might have or might want extra terms
-        cost = float(x @ Q_full @ x + u @ R_reg @ u)
-    elif x_dim >= 8:
-        # ignoring pend => let's do x^T Q_approx x + u^T R_reg u
-        # you might have an approximate Q for 8D states
-        # We'll just do something
-        Q_approx_resized = Q_approx
-        if Q_approx_resized.shape[0] != x_dim:
-            # fallback or slice
-            Q_approx_resized = np.eye(x_dim)
-        cost = float(x @ Q_approx_resized @ x + u @ R_reg @ u)
-    else:
-        # direct thrust => dimension <8
-        # e.g. 6D => do x^T Q + u^T R
-        cost = float(x @ np.eye(x_dim) @ x + u @ R_reg @ u)
+    # Find r using root-finding
+    r = bisect(geometric_sum_error, 0.9, 5.0)
 
-    return cost
+    # Generate step sizes
+    step_sizes = np.array([dt_initial * r**i for i in range(N_steps)])
+
+    # Optional plot
+    if plot:
+        plt.figure(figsize=(8, 4))
+        plt.plot(range(N_steps), step_sizes, marker='o')
+        plt.xlabel("Step Index")
+        plt.ylabel("Step Size")
+        plt.title("Exponential Step Size Growth")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    return step_sizes
