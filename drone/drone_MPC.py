@@ -698,8 +698,8 @@ class DroneMPC:
         cost_expr = ca.vertcat(
             y_,         # Drone y-position
             z_,         # Drone z-position
-            y_load_dd,  # Load acceleration in y-direction
-            z_load_dd,  # Load acceleration in z-direction
+            ca.sign(y_load_dd) * ca.fmin(1e12, ca.fabs(y_load_dd)),  # Load acceleration in y-direction
+            ca.sign(z_load_dd) * ca.fmin(1e12, ca.fabs(z_load_dd)),  # Load acceleration in z-direction
             u_sym[0],   # Control: dw1
             u_sym[1]    # Control: dw2
         )
@@ -723,7 +723,14 @@ class DroneMPC:
         u_1 = model.u[0]
         u_2 = model.u[1]
 
-        cost_expr = ca.vertcat(y_drone, z_drone, y_load_ddot, z_load_ddot, u_1, u_2)
+        cost_expr = ca.vertcat(
+            y_drone, 
+            z_drone, 
+            ca.sign(y_load_ddot) * ca.fmin(1e12, ca.fabs(y_load_ddot)), 
+            ca.sign(z_load_ddot) * ca.fmin(1e12, ca.fabs(z_load_ddot)), 
+            u_1, 
+            u_2
+            )
         return cost_expr
     
     def _cost_expr_full_transition(self, model: AcadosModel) -> ca.SX:
@@ -739,7 +746,10 @@ class DroneMPC:
         y_load_ddot = load_acc[0]
         z_load_ddot = load_acc[1]
 
-        cost_expr = ca.vertcat(y_load_ddot, z_load_ddot)
+        cost_expr = ca.vertcat(
+            ca.sign(y_load_ddot) * ca.fmin(1e12, ca.fabs(y_load_ddot)), 
+            ca.sign(z_load_ddot) * ca.fmin(1e12, ca.fabs(z_load_ddot))
+            )
         return cost_expr
 
 
