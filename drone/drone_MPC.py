@@ -55,7 +55,7 @@ class DroneMPCOptions:
     Q_acc: np.ndarray = field(default_factory=lambda: np.diag([0.008, 0.008, 0.01]))      # on [y_dd, z_dd]
     Q_acc_load: np.ndarray = field(default_factory=lambda: np.diag([0.1, 0.1])) # on [y_load_dd, z_load_dd]
     R_reg: np.ndarray = field(default_factory=lambda: np.diag([1e-3, 1e-3])) # very small penalty on inputs for regularization
-    Q_trans: np.ndarray = field(default_factory=lambda: np.diag([0.03, 0.03]))
+    Q_trans: np.ndarray = field(default_factory=lambda: np.diag([0.00, 0.00]))
 
     # Constraints
     #  - Actuator model: states are [w1,w2], inputs are [dw1,dw2]
