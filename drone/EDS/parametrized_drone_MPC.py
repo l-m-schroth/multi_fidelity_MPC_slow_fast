@@ -251,3 +251,18 @@ class ParametrizedDroneMPC(DroneMPC):
 
         # Return the first control input
         return self.acados_ocp_solver.get(0, "u")
+    
+    def _set_ocp_solver_options(self, ocp: AcadosOcp):
+        ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
+        ocp.solver_options.qp_solver = self.opts.qp_solver
+        ocp.solver_options.integrator_type = self.opts.integrator_type
+        ocp.solver_options.nlp_solver_max_iter = 500
+        ocp.solver_options.tol = 1e-7
+        ocp.solver_options.qp_tol = 1e-2*ocp.solver_options.tol
+        ocp.solver_options.print_level = 1
+        ocp.solver_options.qp_solver_iter_max = 500
+        ocp.solver_options.hessian_approx = "EXACT"#"GAUSS_NEWTON"
+        ocp.solver_options.globalization = "MERIT_BACKTRACKING"
+        ocp.solver_options.levenberg_marquardt = self.opts.levenberg_marquardt # regularize Hessian stongly due to conditioning
+        ocp.solver_options.hpipm_mode = "ROBUST" # problem seems a bit ill conditioned, try robust mode
+        # ocp.solver_options.tf or time_steps must be set outside as appropriate.
