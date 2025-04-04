@@ -46,6 +46,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
     u_opt = np.zeros(nu)
     stage_costs = []
     solve_times = []
+    number_of_iters = []
     
     # Initialize Ornstein-Uhlenbeck noise
     noise_state = np.zeros(nx)
@@ -56,6 +57,7 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         if step % control_step == 0:
             u_opt = mpc.solve(x_traj[step, :nx0_mpc], t)
             solve_times.append(mpc.acados_ocp_solver.get_stats('time_tot')) 
+            number_of_iters.append(mpc.acados_ocp_solver.get_stats('sqp_iter'))
             if plot_open_loop_plan and step % 100*control_step == 0:
                plot_phase_space(mpc.Phi_t, mpc, open_loop_plan=True)
         
@@ -77,4 +79,4 @@ def simulate_closed_loop(x0, mpc, duration, sigma_noise=0.0, tau_noise=1.0,
         # Retrieve next state with correlated noise
         x_traj[step + 1] = sim_solver.get("x") + noise_state
     
-    return x_traj, u_traj, stage_costs, solve_times
+    return x_traj, u_traj, stage_costs, solve_times, number_of_iters

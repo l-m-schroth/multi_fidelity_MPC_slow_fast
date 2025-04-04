@@ -1,147 +1,152 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.patches as patches
+from acados_template import latexify_plot
+import matplotlib.lines as mlines  # For custom legend handle
+import os
 
-def plot_drone_mpc_solution(
-    mpc, 
-    reference_xy=None,
-    closed_loop_traj=None,
-    open_loop_plan=None,
-    u_open_loop_plan=None,
-    plot_title="Drone + Pendulum MPC",
-    step_pose=10
-):
+def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=False, latexify=False, legend=False, number=None, save=False):
     """
-    Visualizes a 2D drone + pendulum MPC solution in three figures:
+    Plots the phase space of the Van der Pol oscillator with the desired trajectory.
+    Depending on the arguments, it can also overlay the open-loop plan (from MPC) or 
+    the closed-loop trajectory.
 
-    Figure 1:
-      - Big subplot: (y–z) trajectory
-      - Smaller subplots: y(t), z(t), phi(t), r(t), theta(t)
-
-    Figure 2:
-      - Another (y–z) plot that draws the drone & pendulum lines at intervals
-        to show the system configuration.
-
-    Figure 3 (only if u_open_loop_plan is provided):
-      - Top subplot: Left & Right thrust over time
-      - Bottom subplot: Control inputs over time (dw1, dw2 or F1, F2)
-
-    Arguments
-    ---------
-    mpc : DroneMPC
-        The MPC instance (contains multi_phase, switch_stage, L_rot, etc.).
-    reference_xy : (2,) array-like, optional
-        The target [y*, z*].
-    closed_loop_traj : np.ndarray, optional
-        If open_loop_plan is None, we can pass a (T, dim) array of states.
-    open_loop_plan : list of np.ndarray, optional
-        Each element shape=(dim,). We unify them for plotting. If multi-phase,
-        we color-code the segments. If single-phase, we treat it as one segment.
-    u_open_loop_plan : list of np.ndarray, optional
-        The control inputs for each stage (except maybe the terminal). Each element shape=(2,).
-        Provide this if you want Figure 3 with thrust and input signals. Must align with open_loop_plan.
-    plot_title : str, optional
-        Title for the figure windows.
-    step_pose : int, optional
-        Interval for drawing the drone lines in Figure 2 to reduce clutter.
+    Args:
+        Phi_t (function): Function generating the desired trajectory as (x1, x2) over time.
+        mpc (VanDerPolMPC, optional): The MPC instance after calling solve().
+                                      Required if open_loop_plan=True.
+        closed_loop_traj (np.ndarray, optional): Closed-loop trajectory of shape (time_steps, 2).
+                                                 Should contain only x1 and x2.
+        open_loop_plan (bool, optional): If True, retrieves and plots the open-loop MPC plan.
+        latexify (bool, optional): If True, applies latexified styles for plotting.
+        legend (bool, optional): If True, shows the legend.
+        number (int, optional): If given, places "number)" in the upper-left corner with 
+                                a white bounding box for visibility.
     """
 
-    # ---------------------------
-    # 1) Convert or unify the main open_loop_plan
-    # ---------------------------
-    if open_loop_plan is None and closed_loop_traj is not None:
-        # convert (T,dim) -> list of (dim,)
-        open_loop_plan = [row for row in closed_loop_traj]
+    # Define phase space grid
+    X1, X2 = np.meshgrid(np.linspace(-2.5, 3, 20), np.linspace(-2.0, 2.5, 18))
+    U = X2
+    V = 1.0 * (1 - X1**2) * X2 - X1  # Van der Pol dynamics ignoring x3
 
-    if open_loop_plan is None:
-        print("No state trajectory data. Exiting.")
-        return
+    # Compute the desired trajectory Phi_t
+    T = np.linspace(0, 50, 500)
+    phi_x1, phi_x2 = np.array([Phi_t(t) for t in T]).T
 
-    # A helper to unify a list of (dim,) snapshots -> (N, dim)
-    def unify_snapshots_into_2d(snapshot_list):
-        mats = []
-        for s in snapshot_list:
-            mats.append(s.reshape(1, -1))
-        return np.vstack(mats)
+    # Create the figure
+    if latexify:
+        latexify_plot()
+    plt.figure(figsize=(8, 6))
 
-    # We'll produce phase_data_list = [2D array for each phase], phase_colors = [...]
-    if not mpc.multi_phase:
-        # Single-phase => unify all into one 2D array
-        phase_data_list = [unify_snapshots_into_2d(open_loop_plan)]
-        phase_colors = ["blue"]
-    else:
-        # multi-phase => 3 phases
-        N0 = mpc.opts.switch_stage
-        snaps0 = open_loop_plan[:N0+1]
-        snaps1 = [open_loop_plan[N0]] if (N0 < len(open_loop_plan)) else []
-        snaps2 = open_loop_plan[N0+1:]
-        p0_2d = unify_snapshots_into_2d(snaps0) if len(snaps0)>0 else None
-        p1_2d = unify_snapshots_into_2d(snaps1) if len(snaps1)>0 else None
-        p2_2d = unify_snapshots_into_2d(snaps2) if len(snaps2)>0 else None
+    # Plot phase space vector field
+    plt.streamplot(X1, X2, U, V, color="gray", arrowsize=1, density=0.8, linewidth=0.5)
 
-        phase_data_list, phase_colors = [], []
-        if p0_2d is not None and p0_2d.shape[0]>0:
-            phase_data_list.append(p0_2d)
-            phase_colors.append("red")
-        if p1_2d is not None and p1_2d.shape[0]>0:
-            phase_data_list.append(p1_2d)
-            phase_colors.append("green")  # transition
-        if p2_2d is not None and p2_2d.shape[0]>0:
-            phase_data_list.append(p2_2d)
-            phase_colors.append("blue")
+    # Plot desired trajectory
+    plt.plot(phi_x1, phi_x2, 'g', label="Desired Trajectory", linewidth=2)
 
-    # ---------------------------------------------
-    # FIGURE 1: Y–Z + states y,z,phi,r,theta
-    # ---------------------------------------------
-    fig1 = plt.figure(figsize=(10, 10))
-    gs = fig1.add_gridspec(4, 2, height_ratios=[1.5,1,1,1])
+    # Optionally overlay closed-loop trajectory
+    if closed_loop_traj is not None:
+        x1_closed, x2_closed = closed_loop_traj[:, 0], closed_loop_traj[:, 1]
+        plt.plot(x1_closed, x2_closed, 'r', label="Closed Loop Trajectory", linewidth=2)
 
-    ax_xy = fig1.add_subplot(gs[0,:])
-    ax_xy.set_title(f"{plot_title} - YZ Trajectory")
-    ax_xy.set_xlabel("y [m]")
-    ax_xy.set_ylabel("z [m]")
-    ax_xy.grid(True)
-    ax_xy.axis("equal")
-    if reference_xy is not None:
-        ax_xy.plot(reference_xy[0], reference_xy[1], marker='*', markersize=10, color='gold', label="Target")
+    # Optionally overlay open-loop plan
+    if open_loop_plan and mpc is not None:
+        x_plan, _ = mpc.get_planned_trajectory()
+        switch_stage = mpc.opts.switch_stage
 
-    ax_y = fig1.add_subplot(gs[1,0])
-    ax_y.set_title("y(t)")
-    ax_z = fig1.add_subplot(gs[1,1])
-    ax_z.set_title("z(t)")
+        if switch_stage == 0:  
+            # **Only 2D Model Case**
+            x1_plan = [x[0] for x in x_plan]
+            x2_plan = [x[1] for x in x_plan]
+            plt.plot(x1_plan, x2_plan, 'b--', label="Open Loop Plan (2D Model)", linewidth=2)
 
-    ax_phi = fig1.add_subplot(gs[2,0])
-    ax_phi.set_title("phi(t)")
-    ax_r   = fig1.add_subplot(gs[2,1])
-    ax_r.set_title("r(t)")
+        elif switch_stage >= mpc.opts.N:  
+            # **Only 3D Model Case**
+            x1_plan = [x[0] for x in x_plan]
+            x2_plan = [x[1] for x in x_plan]
+            plt.plot(x1_plan, x2_plan, 'r--', label="Open Loop Plan (3D Model)", linewidth=2)
 
-    ax_th  = fig1.add_subplot(gs[3,0])
-    ax_th.set_title("theta(t)")
-    ax_unused = fig1.add_subplot(gs[3,1])
-    ax_unused.axis("off")
+        else:  
+            # **Mixed Model Case (3D → 2D switch)**
+            x1_plan_before = [x[0] for x in x_plan[:switch_stage+1]]
+            x2_plan_before = [x[1] for x in x_plan[:switch_stage+1]]
+            x1_plan_after = [x[0] for x in x_plan[switch_stage+1:]]
+            x2_plan_after = [x[1] for x in x_plan[switch_stage+1:]]
+            plt.plot(x1_plan_before, x2_plan_before, 'r--', label="Open Loop Plan (3D Phase)", linewidth=2)
+            plt.plot(x1_plan_after, x2_plan_after, 'b--', label="Open Loop Plan (2D Phase)", linewidth=2)
 
-    for i, arr2d in enumerate(phase_data_list):
-        c = phase_colors[i % len(phase_colors)]
-        Nrows, dim = arr2d.shape
+            # Add arrows indicating open-loop trajectory direction
+            plt.quiver(
+                x1_plan_before[::2], x2_plan_before[::2], 
+                np.gradient(x1_plan_before)[::2], np.gradient(x2_plan_before)[::2], 
+                angles="xy", scale_units="xy", scale=0.3, color="r", width=0.005, headwidth=4, headlength=6
+            )
+            plt.quiver(
+                x1_plan_after[::2], x2_plan_after[::2], 
+                np.gradient(x1_plan_after)[::2], np.gradient(x2_plan_after)[::2], 
+                angles="xy", scale_units="xy", scale=0.3, color="b", width=0.005, headwidth=4, headlength=6
+            )
 
-        # Y–Z
-        if dim>=2:
-            ax_xy.plot(arr2d[:,0], arr2d[:,1], color=c, label=f"Phase {i}")
+    # Optionally visualize elliptical constraints (obstacle)
+    if mpc is not None and mpc.opts.ellipse_centers is not None and mpc.opts.ellipse_half_axes is not None:
+        for i, (center, half_axes) in enumerate(zip(mpc.opts.ellipse_centers, mpc.opts.ellipse_half_axes)):
+            if i == 0:
+                # Put the label on the first ellipse for the legend
+                ellipse = patches.Ellipse(
+                    xy=center,
+                    width=2 * half_axes[0],
+                    height=2 * half_axes[1],
+                    facecolor='grey',
+                    edgecolor='grey',
+                    label='Obstacle'
+                )
+            else:
+                ellipse = patches.Ellipse(
+                    xy=center,
+                    width=2 * half_axes[0],
+                    height=2 * half_axes[1],
+                    facecolor='grey',
+                    edgecolor='grey',
+                )
+            plt.gca().add_patch(ellipse)
 
-        tvals = np.arange(Nrows)
-        if dim>0:
-            ax_y.plot(tvals, arr2d[:,0], color=c)
-        if dim>1:
-            ax_z.plot(tvals, arr2d[:,1], color=c)
-        if dim>2:
-            ax_phi.plot(tvals, arr2d[:,2], color=c)
-        if dim>3:
-            ax_r.plot(tvals, arr2d[:,3], color=c)
-        if dim>4:
-            ax_th.plot(tvals, arr2d[:,4], color=c)
+    # If 'number' is provided, place it in the upper-left corner with a white background
+    if number is not None:
+        plt.text(
+            0.05, 0.95,           # Adjusted x to 0.05 to be on the left side
+            f"{number})",
+            transform=plt.gca().transAxes,
+            horizontalalignment='left',
+            verticalalignment='top',
+            fontsize=20,  # large font
+            bbox=dict(facecolor='white', alpha=1.0, edgecolor='none', pad=5)
+        )
 
-    ax_xy.legend()
-    ax_y.grid(True)
-    ax_z.grid(True)
+    # Labels and settings
+    plt.xlabel("$x_1$")
+    plt.ylabel("$x_2$")
+    #plt.title("Van der Pol Oscillator Phase Space")
+    
+    if legend:
+        # Create a custom legend entry for the VDP phase space arrow.
+        phase_arrow = mlines.Line2D([], [], color='gray', marker=r'$\rightarrow$', 
+                                    linestyle='None', markersize=15, label='VDP phase space')
+        # Get current legend handles and labels
+        handles, labels = plt.gca().get_legend_handles_labels()
+        # Append the custom arrow legend entry
+        handles.append(phase_arrow)
+        labels.append('VDP phase space (phase diagram)')
+        # Place the legend in the upper right corner
+        plt.legend(handles=handles, loc='upper right')
+    
+    plt.grid()
+    # Save figure if requested
+    if save:
+        os.makedirs("plots", exist_ok=True)
+        filename = f"plots/vdp_trajectory_tracking_{number}.pgf"
+        plt.savefig(filename, bbox_inches="tight")
+    plt.show()
+
 
 
 

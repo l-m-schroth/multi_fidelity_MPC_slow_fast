@@ -106,6 +106,7 @@ class VanDerPolMPC:
         # Set solver options
         mp_ocp.solver_options.nlp_solver_type = self.opts.nlp_solver_type
         mp_ocp.solver_options.qp_solver = self.opts.qp_solver
+        mp_ocp.solver_options.nlp_solver_max_iter = 200
         mp_ocp.mocp_opts.integrator_type = [self.opts.integrator_type, 'DISCRETE', 'ERK']
 
         self.total_ocp = mp_ocp
@@ -127,6 +128,7 @@ class VanDerPolMPC:
         ocp.solver_options.qp_solver = self.opts.qp_solver
         ocp.solver_options.integrator_type = self.opts.integrator_type
         ocp.solver_options.N_horizon = self.opts.N
+        ocp.solver_options.nlp_solver_max_iter = 300
         #ocp.solver_options.nlp_solver_warm_start_first_qp = False
 
 
@@ -314,7 +316,7 @@ class VanDerPolMPC:
         ocp.model = self._create_transition_model() 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.model.cost_y_expr = ca.vertcat(ocp.model.x[2])
-        ocp.cost.W = np.diag([20.0])
+        ocp.cost.W = np.diag([0.0])
         ocp.cost.yref = np.array([0.]) # the reference values are overwritten later
         # Apply Circular Constraints if Provided
         if self.opts.ellipse_centers is not None and self.opts.ellipse_half_axes is not None:
