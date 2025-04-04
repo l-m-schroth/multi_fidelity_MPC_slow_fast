@@ -35,7 +35,7 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
 
     # Create the figure
     if latexify:
-        latexify_plot()
+        latexify_plot(fontsize=18)
     plt.figure(figsize=(8, 6))
 
     # Plot phase space vector field
@@ -113,13 +113,13 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
     # If 'number' is provided, place it in the upper-left corner with a white background
     if number is not None:
         plt.text(
-            0.05, 0.95,           # Adjusted x to 0.05 to be on the left side
+            0.05, 0.95,
             f"{number})",
             transform=plt.gca().transAxes,
             horizontalalignment='left',
             verticalalignment='top',
-            fontsize=20,  # large font
-            bbox=dict(facecolor='white', alpha=1.0, edgecolor='none', pad=5)
+            fontsize=32,  # significantly increased for visibility in thesis
+            bbox=dict(facecolor='white', alpha=1.0, edgecolor='none', pad=8)  # slightly more padding for larger text
         )
 
     # Labels and settings
@@ -128,16 +128,13 @@ def plot_phase_space(Phi_t, mpc=None, closed_loop_traj=None, open_loop_plan=Fals
     #plt.title("Van der Pol Oscillator Phase Space")
     
     if legend:
-        # Create a custom legend entry for the VDP phase space arrow.
-        phase_arrow = mlines.Line2D([], [], color='gray', marker=r'$\rightarrow$', 
+        legend_fontsize = 20
+        phase_arrow = mlines.Line2D([], [], color='gray', marker=r'$\rightarrow$',
                                     linestyle='None', markersize=15, label='VDP phase space')
-        # Get current legend handles and labels
         handles, labels = plt.gca().get_legend_handles_labels()
-        # Append the custom arrow legend entry
         handles.append(phase_arrow)
         labels.append('VDP phase space (phase diagram)')
-        # Place the legend in the upper right corner
-        plt.legend(handles=handles, loc='upper right')
+        plt.legend(handles=handles, loc='upper right', fontsize=legend_fontsize, framealpha=0.91)
     
     plt.grid()
     # Save figure if requested
